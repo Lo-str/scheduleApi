@@ -5,7 +5,7 @@ import express from "express"
 import { PrismaClient } from "./generated/prisma/client.js"
 import "dotenv/config"
 import { withAccelerate } from "@prisma/extension-accelerate"
-import { z, ZodType } from "zod"
+import { z } from "zod"
 import {sendError, inputValidation} from "../helpers/response.js"
 import users from "../data/user.ts"
 
@@ -41,8 +41,4 @@ app.post("/login", async (req, res) => {
     } catch (error) {
         sendError(res, 500, error)
     }
-})
-
-app.listen(${port}, () => {
-    console.log(`Server listens on port ${port}`)
 })
