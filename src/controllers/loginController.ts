@@ -1,5 +1,5 @@
 import { Request, Response } from "express"
-import { findUser } from "../services/loginService.js"
+import { findUser } from "../services/loginServices.js"
 import { loginSchema } from "../schemas/loginSchema.js"
 import { sendError, inputValidation } from "../helpers/response.js"
 
@@ -13,5 +13,5 @@ export async function login(req: Request, res: Response) {
     return
   }
 
-  res.status(200).json({ role: user.role, name: user.name })
+  res.json({ role: user.role, name: user.name })
 }
