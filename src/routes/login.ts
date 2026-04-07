@@ -6,7 +6,7 @@ import { PrismaClient } from "./generated/prisma/client.js"
 import "dotenv/config"
 import { withAccelerate } from "@prisma/extension-accelerate"
 import { z, ZodType } from "zod"
-import sendError from "../helpers/response.js"
+import {sendError, inputValidation} from "../helpers/response.js"
 import users from "../data/user.ts"
 
   //****************************************//
@@ -34,8 +34,7 @@ const loginSchema = z.object({
 
 // POST /login
 app.post("/login", async (req, res) => {
-    const result = loginSchema.safeParse(req.body)
-    if (!result.success) return sendError(res, 400, result.error.message)
+    if (!inputValidation(loginSchema, req.body, res)) return
     try {
         const user = await users.find(u => u.email === email)
         res.json(user)
