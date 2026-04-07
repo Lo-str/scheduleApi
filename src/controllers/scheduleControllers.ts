@@ -51,12 +51,42 @@ export type ScheduleResponse = {
 
 /* Get /schedule.
 - Fetches all schedule entries from the database
-- Build jobSchedule and shiftRequirements objects
 */ 
 export const getSchedule = async (req: Request, res: Response) => {
-try {
     try {
-        // Include employee data to get the names for the schedule entries
-    
+
+    await
 } catch (error) {
-    
+    console.error("Error fetching schedule:", error);
+    return res.status(500).json({ error: "An error occurred while fetching the schedule." });
+}
+};
+
+/* PUT /schedule/assign
+- Validates request body using assignSchema
+- Finds the employee by name
+- Updates the schedule entry for the specified shift and day to include the employee
+*/
+export const assignEmployee = async (req: Request, res: Response) => {
+    try {
+      await  
+    } catch (error) {
+        console.error("Error assigning employee:", error);
+        return res.status(500).json({ error: "An error occurred while assigning the employee." });
+    }
+};
+
+/* PUT /schedule/remove
+- Validates request body using removeSchema
+- Finds the employee by name
+- Updates the schedule entry for the specified shift and day to remove the employee
+*/
+export const removeEmployee = async (req: Request, res: Response) => {
+    try {
+await
+    } catch (error) {
+        console.error("Error removing employee:", error);
+        return res.status(500).json({ error: "An error occurred while removing the employee." });
+    }
+}
+
