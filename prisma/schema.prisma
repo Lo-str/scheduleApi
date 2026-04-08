@@ -29,7 +29,7 @@ model User {
   passwordHash String
   role         Role      @default(EMPLOYEE)
   createdAt    DateTime  @default(now())
-  
+
   employee     Employee?
 }
 
@@ -39,7 +39,7 @@ model Employee {
   lastName  String
   loginCode String   @unique
   phone     String?
-  
+
   user      User     @relation(fields: [userId], references: [id])
   userId    Int      @unique
 
@@ -50,8 +50,8 @@ model Employee {
 model Shift {
   id        Int       @id @default(autoincrement())
   name      ShiftName
-  startTime String    
-  endTime   String    
+  startTime String
+  endTime   String
 
   availabilities Availability[]
   schedules      ScheduleEntry[]
