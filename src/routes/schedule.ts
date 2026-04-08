@@ -1,17 +1,13 @@
-import "dotenv/config";
-import express from "express";
+import { Router } from "express";
 import { getSchedule, assignEmployee, removeEmployee } from "../controllers/scheduleControllers";
 
-const app = express();
-app.use(express.json());
+const scheduleRouter = Router();
 
+scheduleRouter.get("/", getSchedule);
+scheduleRouter.put("/assign", assignEmployee);
+scheduleRouter.put("/remove", removeEmployee);
 
-
-app.get("/", getSchedule);
-app.put("/assign", assignEmployee);
-app.put("/remove", removeEmployee);
-
-export { app as scheduleRouter }
+export default scheduleRouter;
 
 
 
