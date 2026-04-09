@@ -1,9 +1,7 @@
 import express from "express";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
-import { prisma, Role } from "./db/prisma.js";
-import { requireEmployer } from "./middleware/rbac.middleware.js";
-
+import { prisma, Role } from "../db";
+import { requireEmployer } from ".src/middleware/rbac.ts";
 const router = express.Router();
 
 // Zod schema for creating employee
@@ -96,3 +94,6 @@ router.post("/employees", requireEmployer, async (req, res) => {
 });
 
 export default router;
+function withAccelerate(): any {
+  throw new Error("Function not implemented.");
+}

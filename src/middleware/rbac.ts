@@ -17,3 +17,6 @@ export const requireEmployer = (req: any, res: any, next: any) => {
 
   next();
 };
+//RBAC means: control access based on user roles.
+// only employers can access employee management endpoints
+// employees can only manage their own availability.
