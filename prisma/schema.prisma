@@ -44,12 +44,12 @@ model Employee {
   userId    Int      @unique
 
   availabilities Availability[]
-  schedules      ScheduleEntry[]
+  schedules      ScheduleEntry[] @relation("ScheduleEmployees")
 }
 
 model Shift {
   id        Int       @id @default(autoincrement())
-  name      ShiftName
+  name      ShiftName @unique
   startTime String    
   endTime   String    
 
@@ -74,9 +74,9 @@ model ScheduleEntry {
   date       DateTime
   note       String?
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
-  employeeId Int
-
+  employees  Employee[] @relation("ScheduleEmployees") 
   shift      Shift    @relation(fields: [shiftId], references: [id])
   shiftId    Int
+
+  @@unique([date, shiftId])
 }
