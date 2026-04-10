@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --exec tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "lint": "eslint src",
     "frontend:dev": "vite frontend",
     "frontend:build": "vite build frontend",
@@ -47,7 +47,6 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
-    "nodemon": "^3.1.14",
     "prettier": "^3.8.1",
     "prisma": "^7.7.0",
     "ts-node": "^10.9.2",
