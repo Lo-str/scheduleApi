@@ -1,99 +1,79 @@
-import express from "express";
-import { z } from "zod";
-import { prisma, Role } from "../db";
-import { requireEmployer } from ".src/middleware/rbac.ts";
-const router = express.Router();
+import express from "express"
+import { z } from "zod"
+import bcrypt from "bcrypt"
+import { prisma } from "../db.js"
+import { sendError, inputValidation } from "../helpers/response.js"
+import { requireEmployer } from "../middleware/rbac.js"
 
-// Zod schema for creating employee
+const router = express.Router()
+
+const RoleEnum = z.enum(["EMPLOYER", "EMPLOYEE"])
+
 const CreateEmployeeSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  email: z.string().email(), // will create linked User
-  password: z.string().min(6), // will be hashed and stored in User
+  email: z.string(),
+  password: z.string().min(6),
   phone: z.string().optional(),
   loginCode: z.string(),
-  role: z.nativeEnum(Role).optional(), // defaults to EMPLOYEE
-});
+  role: RoleEnum.optional(),
+})
 
-// GET /employees - all employees with user info
-router.get("/employees", requireEmployer, async (req, res) => {
+// GET /employees
+router.get("/", requireEmployer, async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
-      include: {
-        user: true, // include linked user
-      },
-    });
-
-    // Strip password from user
+      include: { user: true },
+    })
     const safeEmployees = employees.map((emp) => {
-      const { password, ...userSafe } = emp.user;
-      return { ...emp, user: userSafe };
-    });
-
-    res.status(200).json({ success: true, data: safeEmployees });
+      const { passwordHash, ...userSafe } = emp.user
+      return { ...emp, user: userSafe }
+    })
+    res.json({ success: true, data: safeEmployees })
   } catch (err) {
-    console.error("GET /employees error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to fetch employees" });
+    sendError(res, 500, err)
   }
-});
+})
 
-// POST /employees - create new employee and linked User
-router.post("/employees", requireEmployer, async (req, res) => {
+// POST /employees
+router.post("/", requireEmployer, async (req, res) => {
+  if (!inputValidation(CreateEmployeeSchema, req.body, res)) return
+
   try {
-    const parsed = CreateEmployeeSchema.parse(req.body);
+    const parsed = CreateEmployeeSchema.parse(req.body)
 
-    // Check if email already exists in User table
     const existingUser = await prisma.user.findUnique({
       where: { email: parsed.email },
-    });
+    })
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ success: false, error: "Email already in use" });
+      sendError(res, 400, "Email already in use")
+      return
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(parsed.password, 10);
+    const passwordHash = await bcrypt.hash(parsed.password, 10)
 
-    // Create Employee + linked User
     const employee = await prisma.employee.create({
       data: {
         firstName: parsed.firstName,
         lastName: parsed.lastName,
         loginCode: parsed.loginCode,
-        phone: parsed.phone,
+        phone: parsed.phone ?? null,
         user: {
           create: {
             email: parsed.email,
-            password: hashedPassword,
-            role: parsed.role ?? Role.EMPLOYEE,
+            passwordHash,
+            role: parsed.role ?? "EMPLOYEE",
           },
         },
       },
-      include: {
-        user: true,
-      },
-    });
+      include: { user: true },
+    })
 
-    // Strip password from user before sending response
-    const { password, ...userSafe } = employee.user;
-    const safeEmployee = { ...employee, user: userSafe };
-
-    res.status(201).json({ success: true, data: safeEmployee });
+    const { passwordHash: _, ...userSafe } = employee.user
+    res.status(201).json({ success: true, data: { ...employee, user: userSafe } })
   } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, errors: err.errors });
-    }
-    console.error("POST /employees error:", err);
-    res
-      .status(500)
-      .json({ success: false, error: "Failed to create employee" });
+    sendError(res, 500, err)
   }
-});
+})
 
-export default router;
-function withAccelerate(): any {
-  throw new Error("Function not implemented.");
-}
+export default router
