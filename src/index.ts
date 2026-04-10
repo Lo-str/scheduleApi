@@ -11,12 +11,16 @@ import scheduleRouter from "./routes/schedule.js"
   //****************************************//
  //               VARIABLES                //
 //****************************************//
+
 const app = express()
 app.use(express.json())
 app.use("/auth", loginRouter)
 // app.use("/employees", employeesRouter)
 app.use("/availability", availabilityRouter)
-app.use("/schedule", scheduleRouter)
+app.use("/schedule", (req, res, next) => {
+  console.log("schedule router hit", req.method, req.path)
+  next()
+}, scheduleRouter)
 
 const PORT = process.env.PORT ?? 3000
 

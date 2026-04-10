@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { prisma } from '../db'; 
+import { prisma } from '../db.js';
 import { z } from 'zod';
 
 const router = Router();
@@ -7,7 +7,7 @@ const router = Router();
 // Zod Schema for validation
 const availabilitySchema = z.object({
   shiftId: z.number(),
-  date: z.string(), 
+  date: z.string(),
   available: z.boolean()
 });
 
