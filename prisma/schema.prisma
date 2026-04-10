@@ -56,7 +56,11 @@ model Employee {
 
 model Shift {
   id        Int       @id @default(autoincrement())
+<<<<<<< HEAD
+  name      ShiftName
+=======
   name      ShiftName @unique
+>>>>>>> main
   startTime String
   endTime   String
 
