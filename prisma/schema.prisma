@@ -9,8 +9,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+
+  provider  = "postgresql"
+
+  url       = env("DATABASE_URL")
+
+  directUrl = env("DIRECT_URL")
+
 }
+
 
 enum Role {
   EMPLOYER
@@ -49,7 +56,11 @@ model Employee {
 
 model Shift {
   id        Int       @id @default(autoincrement())
+<<<<<<< HEAD
   name      ShiftName
+=======
+  name      ShiftName @unique
+>>>>>>> main
   startTime String
   endTime   String
 
@@ -79,4 +90,8 @@ model ScheduleEntry {
   shiftId    Int
 
   @@unique([date, shiftId])
+}
+
+model Slots {
+
 }

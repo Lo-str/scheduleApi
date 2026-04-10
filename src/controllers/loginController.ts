@@ -6,8 +6,8 @@ import { sendError, inputValidation } from "../helpers/response.js"
 export async function login(req: Request, res: Response) {
   if (!inputValidation(loginSchema, req.body, res)) return
 
-  const { email, password } = req.body
-  const user = findUser(email, password)
+  const { email, username, password } = req.body
+  const user = findUser(email, password, username)
   if (!user) {
     sendError(res, 401, "Invalid credentials")
     return

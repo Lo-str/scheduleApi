@@ -1,11 +1,6 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "../generated/prisma/client";
-import { withAccelerate } from "@prisma/extension-accelerate";
+import { prisma } from "../db.js"
 import { z } from "zod";
-
-const prisma = new PrismaClient({
-    accelerateUrl: process.env.DATABASE_URL!,
-}).$extends(withAccelerate())
 
 /* SCHEMAS */
 const SHIFTS = ["MORNING", "AFTERNOON", "NIGHT"] as const;
@@ -163,7 +158,7 @@ export const removeEmployee = async (req: Request, res: Response) => {
             return res.status(400).json({
                 success: false,
                 error: "VALIDATION_ERROR",
-                details: z.treeifyError(err),
+                details: z.treeifyError(parsed.error),
             });
         }
 
