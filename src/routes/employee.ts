@@ -20,7 +20,7 @@ const CreateEmployeeSchema = z.object({
 })
 
 // GET /employees
-router.get("/", requireEmployer, async (req, res) => {
+router.get("/", /*requireEmployer, (I commented out for testing and since we are not using JWT tokens.)*/ async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
       include: { user: true },
@@ -36,7 +36,7 @@ router.get("/", requireEmployer, async (req, res) => {
 })
 
 // POST /employees
-router.post("/", requireEmployer, async (req, res) => {
+router.post("/", /*requireEmployer,*/ async (req, res) => {
   if (!inputValidation(CreateEmployeeSchema, req.body, res)) return
 
   try {
