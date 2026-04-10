@@ -1,55 +1,57 @@
-import { Router, Request, Response } from 'express';
-import { prisma } from '../db.js';
-import { z } from 'zod';
+import { Router } from "express"
+import { prisma } from "../db.js"
+import { z } from "zod"
+import { sendError, inputValidation } from "../helpers/response.js"
 
-const router = Router();
+const router = Router()
 
-// Zod Schema for validation
 const availabilitySchema = z.object({
   shiftId: z.number(),
   date: z.string(),
   available: z.boolean()
-});
+})
 
 // GET /availability/:employeeId
-router.get('/:employeeId', async (req: Request, res: Response) => {
-  const { employeeId } = req.params;
-
+router.get("/:employeeId", async (req, res) => {
+  const { employeeId } = req.params
   try {
     const availability = await prisma.availability.findMany({
       where: { employeeId: Number(employeeId) },
-      include: { shift: true } // This shows the shift name/time too!
-    });
-    res.status(200).json(availability);
-  } catch (error) {
-    res.status(500).json({ error: 'Database error fetching availability' });
+      include: { shift: true }
+    })
+    res.json(availability)
+  } catch (err) {
+    sendError(res, 500, err)
   }
-});
+})
 
 // PUT /availability/:employeeId
-router.put('/:employeeId', async (req: Request, res: Response) => {
-  const { employeeId } = req.params;
+router.put("/:employeeId", async (req, res) => {
+  if (!inputValidation(availabilitySchema, req.body, res)) return
 
+  const { employeeId } = req.params
   try {
-    const validatedData = availabilitySchema.parse(req.body);
-
-    const newAvailability = await prisma.availability.create({ // should be upsert for real use case
-      data: {
-        employeeId: Number(employeeId),
-        shiftId: validatedData.shiftId,
-        date: new Date(validatedData.date),
-        available: validatedData.available,
+    const parsed = availabilitySchema.parse(req.body)
+    const newAvailability = await prisma.availability.upsert({
+      where: {
+        employeeId_shiftId_date: {
+          employeeId: Number(employeeId),
+          shiftId: parsed.shiftId,
+          date: new Date(parsed.date),
+        }
       },
-    });
-
-    res.status(200).json(newAvailability);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-       res.status(400).json({ error: error.issues });
-       return;
-    }
-    res.status(500).json({ error: 'Database error saving availability' });
+      update: { available: parsed.available },
+      create: {
+        employeeId: Number(employeeId),
+        shiftId: parsed.shiftId,
+        date: new Date(parsed.date),
+        available: parsed.available,
+      }
+    })
+    res.json(newAvailability)
+  } catch (err) {
+    sendError(res, 500, err)
   }
-});
+})
 
-export default router;
+export default router

@@ -68,6 +68,8 @@ model Availability {
 
   shift      Shift    @relation(fields: [shiftId], references: [id])
   shiftId    Int
+
+  @@unique([employeeId, shiftId, date])
 }
 
 model ScheduleEntry {
