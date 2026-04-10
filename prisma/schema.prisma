@@ -9,8 +9,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+
+  provider  = "postgresql"
+
+  url       = env("DATABASE_URL")
+
+  directUrl = env("DIRECT_URL")
+
 }
+
 
 enum Role {
   EMPLOYER
@@ -29,7 +36,7 @@ model User {
   passwordHash String
   role         Role      @default(EMPLOYEE)
   createdAt    DateTime  @default(now())
-  
+
   employee     Employee?
 }
 
@@ -39,7 +46,7 @@ model Employee {
   lastName  String
   loginCode String   @unique
   phone     String?
-  
+
   user      User     @relation(fields: [userId], references: [id])
   userId    Int      @unique
 
@@ -50,8 +57,8 @@ model Employee {
 model Shift {
   id        Int       @id @default(autoincrement())
   name      ShiftName @unique
-  startTime String    
-  endTime   String    
+  startTime String
+  endTime   String
 
   availabilities Availability[]
   schedules      ScheduleEntry[]
@@ -74,9 +81,13 @@ model ScheduleEntry {
   date       DateTime
   note       String?
 
-  employees  Employee[] @relation("ScheduleEmployees") 
+  employees  Employee[] @relation("ScheduleEmployees")
   shift      Shift    @relation(fields: [shiftId], references: [id])
   shiftId    Int
 
   @@unique([date, shiftId])
+}
+
+model Slots {
+
 }
