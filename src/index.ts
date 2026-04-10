@@ -1,6 +1,7 @@
   //****************************************//
  //                IMPORTS                 //
 //****************************************//
+import "dotenv/config"
 import express from "express"
 import { PrismaClient } from "./generated/prisma/client.js"
 import { withAccelerate } from "@prisma/extension-accelerate"
