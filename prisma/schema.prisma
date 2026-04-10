@@ -82,6 +82,3 @@ model ScheduleEntry {
   @@unique([date, shiftId])
 }
 
-model Slots {
-
-}
