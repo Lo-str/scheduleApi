@@ -36,7 +36,7 @@ import {
   addEmployee,
 } from "../lib/store";
 
-type EmployerSection = "employees" | "register" | "schedule";
+type EmployerSection = "employees" | "schedule";
 
 type EmployeeFormState = {
   firstName: string;
@@ -304,14 +304,6 @@ export default function EmployerPage(): ReactElement {
               List of Employees
             </button>
             <button
-              className={`sidebar-btn ${section === "register" ? "active" : ""}`}
-              type="button"
-              aria-pressed={section === "register"}
-              onClick={() => setSection("register")}
-            >
-              Register Employee
-            </button>
-            <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
               aria-pressed={section === "schedule"}
@@ -356,77 +348,74 @@ export default function EmployerPage(): ReactElement {
                   </article>
                 ))}
               </div>
-            </section>
-          )}
 
-          {/* Registration section for creating new employee accounts. */}
-          {section === "register" && (
-            <section className="panel">
-              <h2>Register New Employee</h2>
-              <form className="register-form" onSubmit={onRegister}>
-                <div className="form-left">
-                  <label htmlFor="register-first-name">First name</label>
-                  <input
-                    id="register-first-name"
-                    value={form.firstName}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        firstName: event.target.value,
-                      }))
-                    }
-                    onInput={() => setRegisterError("")}
-                    required
-                  />
-                  <label htmlFor="register-last-name">Last name</label>
-                  <input
-                    id="register-last-name"
-                    value={form.lastName}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        lastName: event.target.value,
-                      }))
-                    }
-                    onInput={() => setRegisterError("")}
-                    required
-                  />
-                  <label htmlFor="register-email">Email</label>
-                  <input
-                    id="register-email"
-                    type="email"
-                    value={form.email}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        email: event.target.value,
-                      }))
-                    }
-                    onInput={() => setRegisterError("")}
-                    required
-                  />
-                  <label htmlFor="register-role">Role</label>
-                  <select
-                    id="register-role"
-                    value={form.role}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, role: event.target.value }))
-                    }
-                  >
-                    {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
-                      <option key={roleOption}>{roleOption}</option>
-                    ))}
-                  </select>
-                </div>
-                {registerError && (
-                  <p className="error" role="alert" aria-live="polite">
-                    {registerError}
-                  </p>
-                )}
-                <button className="btn" type="submit">
-                  Create employee
-                </button>
-              </form>
+              <details className="panel-subtle employee-register-panel">
+                <summary>Register New Employee</summary>
+                <form className="register-form" onSubmit={onRegister}>
+                  <div className="form-left">
+                    <label htmlFor="register-first-name">First name</label>
+                    <input
+                      id="register-first-name"
+                      value={form.firstName}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          firstName: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+                    <label htmlFor="register-last-name">Last name</label>
+                    <input
+                      id="register-last-name"
+                      value={form.lastName}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          lastName: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+                    <label htmlFor="register-email">Email</label>
+                    <input
+                      id="register-email"
+                      type="email"
+                      value={form.email}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          email: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+                    <label htmlFor="register-role">Role</label>
+                    <select
+                      id="register-role"
+                      value={form.role}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, role: event.target.value }))
+                      }
+                    >
+                      {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
+                        <option key={roleOption}>{roleOption}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {registerError && (
+                    <p className="error" role="alert" aria-live="polite">
+                      {registerError}
+                    </p>
+                  )}
+                  <button className="btn" type="submit">
+                    Create employee
+                  </button>
+                </form>
+              </details>
             </section>
           )}
 

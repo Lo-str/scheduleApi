@@ -1,13 +1,11 @@
 import { type FormEvent, type ReactElement, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { appApi } from "../lib/api";
-import { type RoleName } from "../lib/store";
 import logo from "../assets/logo.png";
 
 type LoginFormState = {
   username: string;
   password: string;
-  role: RoleName;
 };
 
 // Render login form and route users based on role.
@@ -16,7 +14,6 @@ export default function LoginPage(): ReactElement {
   const [form, setForm] = useState<LoginFormState>({
     username: "",
     password: "",
-    role: "employee",
   });
   const [error, setError] = useState("");
   const isSubmitDisabled = !form.username.trim() || !form.password;
@@ -25,13 +22,9 @@ export default function LoginPage(): ReactElement {
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const normalizedUsername = form.username.trim();
-    const user = appApi.authenticateUser(
-      normalizedUsername,
-      form.password,
-      form.role,
-    );
+    const user = appApi.authenticateUser(normalizedUsername, form.password);
     if (!user) {
-      setError("Incorrect login details for selected role.");
+      setError("Incorrect login details.");
       return;
     }
 
@@ -65,7 +58,7 @@ export default function LoginPage(): ReactElement {
           </p>
 
           <form className="form-grid" onSubmit={onSubmit}>
-            {/* Username + password + role selection map directly to auth validation. */}
+            {/* Username and password map directly to auth validation. */}
             <label htmlFor="username">Username</label>
             <input
               id="username"
@@ -92,21 +85,6 @@ export default function LoginPage(): ReactElement {
               aria-describedby={error ? "login-error" : undefined}
               required
             />
-
-            <label htmlFor="role">Role</label>
-            <select
-              id="role"
-              value={form.role}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  role: event.target.value as RoleName,
-                }))
-              }
-            >
-              <option value="employee">Employee</option>
-              <option value="employer">Employer</option>
-            </select>
 
             <div />
             <button className="btn" type="submit" disabled={isSubmitDisabled}>

@@ -39,7 +39,7 @@ export function getCurrentUser(): SessionUser | null {
     username: String(parsed.username || ""),
     role: parsed.role as RoleName,
     name: String(parsed.name || ""),
-    expiresAt: parsed.expiresAt,
+    expiresAt: parsed.expiresAt ?? Date.now(),
   };
 }
 
@@ -52,14 +52,14 @@ export function clearCurrentUser(): void {
 export function authenticate(
   username: string,
   password: string,
-  role: RoleName,
+  role?: RoleName,
 ): User | null {
   const store = getStore();
   const user = store.users.find(
     (entry) =>
       entry.username === username.toLowerCase().trim() &&
       entry.password === password &&
-      entry.role === role,
+      (role ? entry.role === role : true),
   );
   return user || null;
 }

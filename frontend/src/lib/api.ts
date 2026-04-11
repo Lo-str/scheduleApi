@@ -5,7 +5,6 @@ import {
   getStore,
   saveStore,
   setCurrentUser,
-  type RoleName,
   type SessionUser,
   type Store,
   type User,
@@ -29,12 +28,8 @@ export const appApi = {
   },
 
   // Validate credentials and return the matching user, if any.
-  authenticateUser(
-    username: string,
-    password: string,
-    role: RoleName,
-  ): User | null {
-    return authenticate(username, password, role);
+  authenticateUser(username: string, password: string): User | null {
+    return authenticate(username, password);
   },
 
   // Expose store read for page-level data rendering.
