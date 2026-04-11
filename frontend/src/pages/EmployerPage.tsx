@@ -11,6 +11,7 @@ import { getProfileImage } from "../assets/profileImages";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
+  getRoleColorClass,
   TOAST_DURATION_MS,
 } from "../lib/constants";
 import {
@@ -95,11 +96,13 @@ export default function EmployerPage(): ReactElement {
     type: "assigned" | "open";
     label: string;
     rawName?: string;
+    role?: string;
   }> => {
     const assigned = names.map((name) => ({
       type: "assigned" as const,
       label: getFirstName(name),
       rawName: name,
+      role: store.employees.find((entry) => entry.name === name)?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -540,7 +543,7 @@ export default function EmployerPage(): ReactElement {
                                 {/* Slot blocks visualize assigned vs open staffing capacity. */}
                                 {slotBlocks.map((slot, index) => (
                                   <span
-                                    className={`slot-block ${slot.type}`}
+                                    className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                     key={`employer-grid-slot-${shift}-${day}-${index}`}
                                     title={slot.rawName || slot.label}
                                   >
@@ -660,7 +663,7 @@ export default function EmployerPage(): ReactElement {
                             >
                               {slotBlocks.map((slot, index) => (
                                 <span
-                                  className={`slot-block ${slot.type}`}
+                                  className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                   key={`employer-mobile-slot-${shift}-${day}-${index}`}
                                   title={slot.rawName || slot.label}
                                 >

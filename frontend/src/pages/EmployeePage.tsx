@@ -8,7 +8,7 @@ import {
 import { Navigate, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { getProfileImage } from "../assets/profileImages";
-import { TOAST_DURATION_MS } from "../lib/constants";
+import { TOAST_DURATION_MS, getRoleColorClass } from "../lib/constants";
 import {
   type AvailabilityByShift,
   type DayName,
@@ -148,12 +148,14 @@ export default function EmployeePage(): ReactElement {
     label: string;
     rawName?: string;
     isMine: boolean;
+    role?: string;
   }> => {
     const assigned = names.map((name) => ({
       type: "assigned" as const,
       label: name === myUser.name ? "You" : getFirstName(name),
       rawName: name,
       isMine: name === myUser.name,
+      role: store.employees.find((entry) => entry.name === name)?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -693,7 +695,7 @@ export default function EmployeePage(): ReactElement {
                                 >
                                   {slotBlocks.map((slot, index) => (
                                     <span
-                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
+                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                       key={`mobile-slot-${key}-${index}`}
                                       title={slot.rawName || slot.label}
                                     >
@@ -708,7 +710,7 @@ export default function EmployeePage(): ReactElement {
                               >
                                 {slotBlocks.map((slot, index) => (
                                   <span
-                                    className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
+                                    className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                     key={`mobile-expanded-slot-${key}-${index}`}
                                     title={slot.rawName || slot.label}
                                   >
@@ -851,7 +853,7 @@ export default function EmployeePage(): ReactElement {
                                   >
                                     {slotBlocks.map((slot, index) => (
                                       <span
-                                        className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
+                                        className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                         key={`grid-slot-${key}-${index}`}
                                         title={slot.rawName || slot.label}
                                       >
@@ -866,7 +868,7 @@ export default function EmployeePage(): ReactElement {
                                 >
                                   {slotBlocks.map((slot, index) => (
                                     <span
-                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
+                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                       key={`grid-expanded-slot-${key}-${index}`}
                                       title={slot.rawName || slot.label}
                                     >

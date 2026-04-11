@@ -519,6 +519,28 @@ summary:focus-visible {
     color: #1f4d78;
 }
 
+.slot-block.assigned.role-color {
+    border-width: 2px;
+}
+
+.slot-block.assigned.role-color.waiter {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #60a5fa;
+}
+
+.slot-block.assigned.role-color.runner {
+    background: #f0e5ff;
+    color: #6d28d9;
+    border-color: #a855f7;
+}
+
+.slot-block.assigned.role-color.default {
+    background: #eef2f7;
+    color: #35506f;
+    border-color: #aac3df;
+}
+
 .slot-block.assigned.mine {
     border-color: #4d84bc;
     box-shadow: inset 0 0 0 1px #8fb4da;
