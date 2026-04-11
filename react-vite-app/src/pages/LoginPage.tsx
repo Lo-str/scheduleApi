@@ -22,9 +22,11 @@ export default function LoginPage(): ReactElement {
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const normalizedUsername = form.username.trim();
-    const user = appApi.authenticateUser(normalizedUsername, form.password);
+    const user =
+      appApi.authenticateUser(normalizedUsername, form.password, "employer") ||
+      appApi.authenticateUser(normalizedUsername, form.password, "employee");
     if (!user) {
-      setError("Incorrect login details.");
+      setError("Incorrect username or password.");
       return;
     }
 
@@ -37,16 +39,17 @@ export default function LoginPage(): ReactElement {
   return (
     <div className="page login-page">
       <main className="pet-login-shell">
+        {/* Visual style follows the reference while keeping role-aware auth logic intact. */}
         <section className="pet-login-card">
           <img
             className="pet-login-logo"
             src={loginLogo}
-            alt="Paws and Plates logo - a stylized paw print with a plate and utensils"
+            alt="Paws and Plates"
           />
 
           <form className="pet-login-form" onSubmit={onSubmit}>
             <label className="pet-field-label" htmlFor="username">
-              Username or email
+              Username
             </label>
             <div className="pet-input-wrap">
               <span className="pet-input-icon" aria-hidden="true">
@@ -59,7 +62,7 @@ export default function LoginPage(): ReactElement {
                 id="username"
                 value={form.username}
                 autoComplete="username"
-                placeholder="Your username or email"
+                placeholder="your username"
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, username: event.target.value }))
                 }
@@ -70,7 +73,7 @@ export default function LoginPage(): ReactElement {
             </div>
 
             <label className="pet-field-label" htmlFor="password">
-              Pawsword
+              Password
             </label>
             <div className="pet-input-wrap">
               <span className="pet-input-icon" aria-hidden="true">
@@ -86,7 +89,7 @@ export default function LoginPage(): ReactElement {
                 type="password"
                 value={form.password}
                 autoComplete="current-password"
-                placeholder="Your password"
+                placeholder="password"
                 onChange={(event) =>
                   setForm((prev) => ({ ...prev, password: event.target.value }))
                 }

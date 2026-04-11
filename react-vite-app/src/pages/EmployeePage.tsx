@@ -1,19 +1,14 @@
 import {
-  type ChangeEvent,
   type FormEvent,
   Fragment,
   type ReactElement,
-  useRef,
+  useMemo,
   useState,
 } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { getProfileImage, setProfileImage } from "../assets/profileImages";
-import {
-  EMPLOYEE_ROLE_OPTIONS,
-  TOAST_DURATION_MS,
-  getRoleColorClass,
-} from "../lib/constants";
+import { getProfileImage } from "../assets/profileImages";
+import { TOAST_DURATION_MS } from "../lib/constants";
 import {
   type AvailabilityByShift,
   type DayName,
@@ -42,8 +37,6 @@ type ProfileFormState = {
   name: string;
   email: string;
   phone: string;
-  role: string;
-  loginCode: string;
 };
 
 const AVAILABILITY_STATES = ["available", "maybe", "unavailable"] as const;
@@ -70,23 +63,14 @@ export default function EmployeePage(): ReactElement {
   const [giveawayTargetByKey, setGiveawayTargetByKey] = useState<
     Record<string, string>
   >({});
-  const [showLoginCode, setShowLoginCode] = useState(false);
-  const [selectedProfileImageDataUrl, setSelectedProfileImageDataUrl] =
-    useState("");
-  const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const myUser = store.users.find(
-    (entry) => entry.username === safeSessionUser.username,
-  );
-  const myEmployee = store.employees.find(
     (entry) => entry.username === safeSessionUser.username,
   );
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
     name: myUser?.name || "",
     email: myUser?.email || "",
     phone: myUser?.phone || "",
-    role: myEmployee?.role || "Waiter",
-    loginCode: myUser?.password || "",
   });
   const [availabilityDraft, setAvailabilityDraft] =
     useState<AvailabilityByShift>(() =>
@@ -95,6 +79,13 @@ export default function EmployeePage(): ReactElement {
   const isScheduleEditable = !compactMode;
 
   if (!sessionUser) return <Navigate to="/login" replace />;
+
+  const roles = useMemo(
+    () => [...new Set(store.employees.map((entry) => entry.role))],
+    [store.employees],
+  );
+  const headerAvatar = getProfileImage(myUser.username);
+  const headerInitial = myUser.name.slice(0, 1).toUpperCase();
 
   // Show a short confirmation toast.
   const showToast = (message: string): void => {
@@ -129,9 +120,6 @@ export default function EmployeePage(): ReactElement {
     );
   }
 
-  const headerAvatar = getProfileImage(myUser.username);
-  const headerInitial = myUser.name.slice(0, 1).toUpperCase();
-
   const toDisplayName = (name: string): string =>
     name === myUser.name ? "You" : name;
 
@@ -162,14 +150,12 @@ export default function EmployeePage(): ReactElement {
     label: string;
     rawName?: string;
     isMine: boolean;
-    role?: string;
   }> => {
     const assigned = names.map((name) => ({
       type: "assigned" as const,
       label: name === myUser.name ? "You" : getFirstName(name),
       rawName: name,
       isMine: name === myUser.name,
-      role: store.employees.find((entry) => entry.name === name)?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -193,14 +179,6 @@ export default function EmployeePage(): ReactElement {
     );
     if (!updated) return;
 
-    if (selectedProfileImageDataUrl) {
-      setProfileImage(sessionUser.username, selectedProfileImageDataUrl);
-      if (profileImageInputRef.current) {
-        profileImageInputRef.current.value = "";
-      }
-      setSelectedProfileImageDataUrl("");
-    }
-
     appendScheduleAudit(nextStore, {
       actor: sessionUser.username,
       role: "employee",
@@ -210,26 +188,6 @@ export default function EmployeePage(): ReactElement {
 
     refresh();
     showToast("Profile updated");
-  };
-
-  const onProfileImageChange = (event: ChangeEvent<HTMLInputElement>): void => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setSelectedProfileImageDataUrl("");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      window.alert("Please select an image file.");
-      event.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSelectedProfileImageDataUrl(
-        typeof reader.result === "string" ? reader.result : "",
-      );
-    };
-    reader.readAsDataURL(file);
   };
 
   // Rotate one availability cell to the next state.
@@ -334,21 +292,14 @@ export default function EmployeePage(): ReactElement {
       <header className="topbar">
         <div className="topbar-left">
           {headerAvatar ? (
-            <img
-              className="topbar-avatar"
-              src={headerAvatar}
-              alt={myUser.name}
-            />
+            <img className="topbar-avatar" src={headerAvatar} alt={myUser.name} />
           ) : (
-            <div
-              className="topbar-avatar topbar-avatar-fallback"
-              aria-hidden="true"
-            >
+            <div className="topbar-avatar topbar-avatar-fallback" aria-hidden="true">
               {headerInitial}
             </div>
           )}
-          <h1>Employee</h1>
-          <p className="topbar-subtitle">My Schedule</p>
+          <h1>{myUser.name}</h1>
+          <p className="topbar-subtitle">Good to see you - let's get cooking</p>
         </div>
         <div className="topbar-right">
           <img
@@ -369,7 +320,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "profile" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "profile"}
               onClick={() => setSection("profile")}
             >
               My Profile
@@ -377,18 +327,16 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "availability" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "availability"}
               onClick={() => setSection("availability")}
             >
-              Availability
+              Availability Board
             </button>
             <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "schedule"}
               onClick={() => setSection("schedule")}
             >
-              My Schedule
+              My Shifts
             </button>
           </nav>
         </aside>
@@ -396,18 +344,13 @@ export default function EmployeePage(): ReactElement {
         <main className="dashboard-main">
           {/* Profile section: basic identity fields for the logged-in employee. */}
           {section === "profile" && (
-            <section className="panel">
+            <section className="panel panel-profile">
               <h2>My Profile</h2>
-              {myUser &&
-              (selectedProfileImageDataUrl ||
-                getProfileImage(myUser.username)) ? (
+              {myUser && getProfileImage(myUser.username) ? (
                 <div className="profile-header-card">
                   <img
                     className="profile-avatar"
-                    src={
-                      selectedProfileImageDataUrl ||
-                      getProfileImage(myUser.username)
-                    }
+                    src={getProfileImage(myUser.username)}
                     alt={myUser.name}
                   />
                   <div>
@@ -452,54 +395,9 @@ export default function EmployeePage(): ReactElement {
                     }))
                   }
                 />
-                <label htmlFor="profile-role">Role</label>
-                <select
-                  id="profile-role"
-                  value={profileForm.role}
-                  onChange={(event) =>
-                    setProfileForm((prev) => ({
-                      ...prev,
-                      role: event.target.value,
-                    }))
-                  }
-                >
-                  {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
-                    <option key={roleOption}>{roleOption}</option>
-                  ))}
-                </select>
-                <label htmlFor="profile-login-code">Login code</label>
-                <div className="login-code-field">
-                  <input
-                    id="profile-login-code"
-                    type={showLoginCode ? "text" : "password"}
-                    value={profileForm.loginCode}
-                    onChange={(event) =>
-                      setProfileForm((prev) => ({
-                        ...prev,
-                        loginCode: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                  <button
-                    className="btn btn-secondary tiny"
-                    type="button"
-                    onClick={() => setShowLoginCode((prev) => !prev)}
-                  >
-                    {showLoginCode ? "Hide" : "Show"}
-                  </button>
-                </div>
-                <label htmlFor="profile-image">Profile picture</label>
-                <input
-                  id="profile-image"
-                  ref={profileImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={onProfileImageChange}
-                />
                 <div />
                 <button className="btn" type="submit">
-                  Save changes
+                  Save profile
                 </button>
               </form>
             </section>
@@ -507,8 +405,8 @@ export default function EmployeePage(): ReactElement {
 
           {/* Availability section: editable personal matrix + read-only team view. */}
           {section === "availability" && (
-            <section className="panel">
-              <h2>Availability</h2>
+            <section className="panel panel-availability">
+              <h2>Availability Board</h2>
               <p className="muted">
                 Top table: your availability (editable). Bottom table: team
                 availability by shift (read-only).
@@ -550,7 +448,7 @@ export default function EmployeePage(): ReactElement {
                 </table>
               </div>
               <button className="btn" onClick={saveAvailability} type="button">
-                Save changes
+                Save availability
               </button>
 
               <div className="panel-subtle">
@@ -683,8 +581,8 @@ export default function EmployeePage(): ReactElement {
 
           {/* Schedule section: personal shift actions in compact (read-only) or expanded (editable) mode. */}
           {section === "schedule" && (
-            <section className="panel">
-              <h2>My Schedule</h2>
+            <section className="panel panel-schedule">
+              <h2>My Shift Board</h2>
               <div className="panel-subtle schedule-control-bar">
                 <div className="schedule-tools-row">
                   <span
@@ -714,7 +612,7 @@ export default function EmployeePage(): ReactElement {
                     onChange={(event) => setRoleFilter(event.target.value)}
                   >
                     <option value="all">All roles</option>
-                    {EMPLOYEE_ROLE_OPTIONS.map((role) => (
+                    {roles.map((role) => (
                       <option key={role}>{role}</option>
                     ))}
                   </select>
@@ -801,7 +699,7 @@ export default function EmployeePage(): ReactElement {
                                 >
                                   {slotBlocks.map((slot, index) => (
                                     <span
-                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
+                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
                                       key={`mobile-slot-${key}-${index}`}
                                       title={slot.rawName || slot.label}
                                     >
@@ -816,7 +714,7 @@ export default function EmployeePage(): ReactElement {
                               >
                                 {slotBlocks.map((slot, index) => (
                                   <span
-                                    className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
+                                    className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
                                     key={`mobile-expanded-slot-${key}-${index}`}
                                     title={slot.rawName || slot.label}
                                   >
@@ -846,11 +744,12 @@ export default function EmployeePage(): ReactElement {
                               onClick={() => addSelfToShift(shift, day)}
                               disabled={openSlots === 0}
                             >
-                              Join shift
+                              Claim shift
                             </button>
                           ) : isScheduleEditable ? (
                             <div className="schedule-cell-actions schedule-cell-actions-inline">
                               <select
+                                aria-label={`Select colleague for ${formatShiftLabel(shift)} ${day}`}
                                 value={giveawayTargetByKey[key] || ""}
                                 onChange={(event) =>
                                   setGiveawayTargetByKey((prev) => ({
@@ -877,7 +776,7 @@ export default function EmployeePage(): ReactElement {
                                 disabled={!giveawayTargetByKey[key]}
                                 onClick={() => requestGiveaway(shift, day)}
                               >
-                                Give away
+                                Offer shift
                               </button>
                             </div>
                           ) : null}
@@ -891,10 +790,7 @@ export default function EmployeePage(): ReactElement {
               <div className="schedule-grid-wrapper">
                 {/* Desktop grid mirrors mobile behavior but keeps all days visible at once. */}
                 <div
-                  className={`schedule-grid ${compactMode ? "compact-mode" : ""}`}
-                  style={{
-                    gridTemplateColumns: `180px repeat(${DAYS.length}, 220px)`,
-                  }}
+                  className={`schedule-grid schedule-grid-seven-days ${compactMode ? "compact-mode" : ""}`}
                 >
                   <div className="grid-cell header">Shift</div>
                   {DAYS.map((day) => (
@@ -959,7 +855,7 @@ export default function EmployeePage(): ReactElement {
                                   >
                                     {slotBlocks.map((slot, index) => (
                                       <span
-                                        className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
+                                        className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
                                         key={`grid-slot-${key}-${index}`}
                                         title={slot.rawName || slot.label}
                                       >
@@ -974,7 +870,7 @@ export default function EmployeePage(): ReactElement {
                                 >
                                   {slotBlocks.map((slot, index) => (
                                     <span
-                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
+                                      className={`slot-block ${slot.type} ${slot.isMine ? "mine" : ""}`}
                                       key={`grid-expanded-slot-${key}-${index}`}
                                       title={slot.rawName || slot.label}
                                     >
@@ -1004,11 +900,12 @@ export default function EmployeePage(): ReactElement {
                                 onClick={() => addSelfToShift(shift, day)}
                                 disabled={openSlots === 0}
                               >
-                                Join shift
+                                Claim shift
                               </button>
                             ) : isScheduleEditable ? (
                               <div className="schedule-cell-actions schedule-cell-actions-inline">
                                 <select
+                                  aria-label={`Select colleague for ${formatShiftLabel(shift)} ${day}`}
                                   value={giveawayTargetByKey[key] || ""}
                                   onChange={(event) =>
                                     setGiveawayTargetByKey((prev) => ({
@@ -1037,7 +934,7 @@ export default function EmployeePage(): ReactElement {
                                   disabled={!giveawayTargetByKey[key]}
                                   onClick={() => requestGiveaway(shift, day)}
                                 >
-                                  Give away
+                                  Offer shift
                                 </button>
                               </div>
                             ) : null}
@@ -1057,8 +954,8 @@ export default function EmployeePage(): ReactElement {
                       request.fromName === myUser.name ||
                       request.toName === myUser.name,
                   ).length === 0 ? (
-                    <p className="muted">
-                      No handover requests for your shifts yet.
+                    <p className="muted playful-empty">
+                      No handovers on your plate yet.
                     </p>
                   ) : (
                     store.shiftExchangeRequests

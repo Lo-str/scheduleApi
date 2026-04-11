@@ -7,16 +7,9 @@ export const EMPLOYEE_ROLE_OPTIONS = [
   "Waiter",
   "Runner",
   "Head Waiter",
+  "Chef",
+  "Bartender",
 ] as const;
-
-// Schedule role colors are applied in the UI through CSS classes.
-export function getRoleColorClass(role: string): string {
-  const normalized = role.trim().toLowerCase();
-  if (normalized === "runner") return "role-color runner";
-  if (normalized === "head waiter") return "role-color head-waiter";
-  if (normalized === "waiter") return "role-color waiter";
-  return "role-color default";
-}
 
 // Shared email validation pattern for profile and registration forms.
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

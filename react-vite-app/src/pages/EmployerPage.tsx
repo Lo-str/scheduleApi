@@ -1,18 +1,16 @@
 import {
-  type ChangeEvent,
   type FormEvent,
   Fragment,
   type ReactElement,
-  useRef,
+  useMemo,
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { getProfileImage, setProfileImage } from "../assets/profileImages";
+import { getProfileImage } from "../assets/profileImages";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
-  getRoleColorClass,
   TOAST_DURATION_MS,
 } from "../lib/constants";
 import {
@@ -38,14 +36,13 @@ import {
   getCurrentUser,
 } from "../lib/store";
 
-type EmployerSection = "employees" | "schedule";
+type EmployerSection = "employees" | "register" | "schedule";
 
 type EmployeeFormState = {
   firstName: string;
   lastName: string;
   email: string;
   role: string;
-  loginCode: string;
 };
 
 type RequestReviewStatus = "approved" | "rejected";
@@ -60,18 +57,20 @@ export default function EmployerPage(): ReactElement {
   const [dayFilter, setDayFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);
-  const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(true);
+  const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(false);
   const [toast, setToast] = useState("");
   const [registerError, setRegisterError] = useState("");
-  const [registerImageDataUrl, setRegisterImageDataUrl] = useState("");
-  const registerImageRef = useRef<HTMLInputElement | null>(null);
   const [form, setForm] = useState<EmployeeFormState>({
     firstName: "",
     lastName: "",
     email: "",
     role: "Waiter",
-    loginCode: "",
   });
+
+  const roles = useMemo(
+    () => [...new Set(store.employees.map((entry) => entry.role))],
+    [store.employees],
+  );
   const headerName =
     sessionUser?.name || sessionUser?.username || "Employer Account";
   const headerAvatar = sessionUser
@@ -104,13 +103,11 @@ export default function EmployerPage(): ReactElement {
     type: "assigned" | "open";
     label: string;
     rawName?: string;
-    role?: string;
   }> => {
     const assigned = names.map((name) => ({
       type: "assigned" as const,
       label: getFirstName(name),
       rawName: name,
-      role: store.employees.find((entry) => entry.name === name)?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -220,69 +217,24 @@ export default function EmployerPage(): ReactElement {
       setRegisterError("Enter a valid email address.");
       return;
     }
-    const loginCode = form.loginCode.trim();
-    if (!loginCode) {
-      setRegisterError("Enter a login code for the employee.");
-      return;
-    }
 
     const nextStore = getStore();
-    const createdEmployee = addEmployee(nextStore, {
+    addEmployee(nextStore, {
       name: fullName,
       role: form.role,
-      loginCode,
       email,
     });
-    if (registerImageDataUrl) {
-      setProfileImage(createdEmployee.username, registerImageDataUrl);
-    }
     appendScheduleAudit(nextStore, {
       actor: "admin",
       role: "employer",
       action: "create-employee",
       details: `${fullName} created as ${form.role}`,
     });
-    setForm({
-      firstName: "",
-      lastName: "",
-      email: "",
-      role: "Waiter",
-      loginCode: "",
-    });
-    setRegisterImageDataUrl("");
-    if (registerImageRef.current) {
-      registerImageRef.current.value = "";
-    }
+    setForm({ firstName: "", lastName: "", email: "", role: "Waiter" });
     setRegisterError("");
     setStore(nextStore);
     setSection("employees");
     showToast("Employee created");
-  };
-
-  const onRegisterImageChange = (
-    event: ChangeEvent<HTMLInputElement>,
-  ): void => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setRegisterImageDataUrl("");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      setRegisterError("Profile image must be an image file.");
-      event.target.value = "";
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setRegisterImageDataUrl(
-        typeof reader.result === "string" ? reader.result : "",
-      );
-      setRegisterError("");
-    };
-    reader.onerror = () => {
-      setRegisterError("Could not read selected image.");
-    };
-    reader.readAsDataURL(file);
   };
 
   // Update an employee role from the employee list.
@@ -330,21 +282,14 @@ export default function EmployerPage(): ReactElement {
       <header className="topbar">
         <div className="topbar-left">
           {headerAvatar ? (
-            <img
-              className="topbar-avatar"
-              src={headerAvatar}
-              alt={headerName}
-            />
+            <img className="topbar-avatar" src={headerAvatar} alt={headerName} />
           ) : (
-            <div
-              className="topbar-avatar topbar-avatar-fallback"
-              aria-hidden="true"
-            >
+            <div className="topbar-avatar topbar-avatar-fallback" aria-hidden="true">
               {headerInitial}
             </div>
           )}
-          <h1>Employer</h1>
-          <p className="topbar-subtitle">Schedule Administration</p>
+          <h1>{headerName}</h1>
+          <p className="topbar-subtitle">Good to see you - let's get cooking</p>
         </div>
         <div className="topbar-right">
           <img
@@ -365,18 +310,23 @@ export default function EmployerPage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "employees" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "employees"}
               onClick={() => setSection("employees")}
             >
-              List of Employees
+              Team Roster
+            </button>
+            <button
+              className={`sidebar-btn ${section === "register" ? "active" : ""}`}
+              type="button"
+              onClick={() => setSection("register")}
+            >
+              Add Team Member
             </button>
             <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "schedule"}
               onClick={() => setSection("schedule")}
             >
-              Work Schedule
+              Kitchen Schedule
             </button>
           </nav>
         </aside>
@@ -384,160 +334,127 @@ export default function EmployerPage(): ReactElement {
         <main className="dashboard-main">
           {/* Staff directory section for role management. */}
           {section === "employees" && (
-            <section className="panel">
-              <h2>List of Employees</h2>
+            <section className="panel panel-employees">
+              <h2>Team Roster</h2>
               <div className="employee-cards">
-                {store.employees.map((employee) => (
-                  <article className="employee-card" key={employee.username}>
-                    {getProfileImage(employee.username) ? (
-                      <img
-                        className="employee-avatar"
-                        src={getProfileImage(employee.username)}
-                        alt={employee.name}
-                      />
-                    ) : (
-                      <div className="avatar" />
-                    )}
-                    <h3>{employee.name}</h3>
-                    <p>{employee.email}</p>
-                    <label className="inline-label">Role</label>
-                    <select
-                      value={
-                        EMPLOYEE_ROLE_OPTIONS.includes(
-                          employee.role as (typeof EMPLOYEE_ROLE_OPTIONS)[number],
-                        )
-                          ? employee.role
-                          : "Waiter"
-                      }
-                      aria-label={`Role for ${employee.name}`}
-                      onChange={(event) =>
-                        onRoleChange(employee.name, event.target.value)
-                      }
-                    >
-                      {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
-                        <option key={roleOption}>{roleOption}</option>
-                      ))}
-                    </select>
-                  </article>
-                ))}
+                {store.employees.length === 0 ? (
+                  <p className="muted playful-empty">
+                    No team members yet. Add your first crew member to get
+                    things cooking.
+                  </p>
+                ) : (
+                  store.employees.map((employee) => (
+                    <article className="employee-card" key={employee.username}>
+                      {getProfileImage(employee.username) ? (
+                        <img
+                          className="employee-avatar"
+                          src={getProfileImage(employee.username)}
+                          alt={employee.name}
+                        />
+                      ) : (
+                        <div className="avatar" />
+                      )}
+                      <span className="role-badge" aria-label={employee.role}>
+                        {employee.role.slice(0, 1).toUpperCase()}
+                      </span>
+                      <h3>{employee.name}</h3>
+                      <p>{employee.email}</p>
+                      <label className="inline-label">Role</label>
+                      <select
+                        value={employee.role}
+                        aria-label={`Role for ${employee.name}`}
+                        onChange={(event) =>
+                          onRoleChange(employee.name, event.target.value)
+                        }
+                      >
+                        {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
+                          <option key={roleOption}>{roleOption}</option>
+                        ))}
+                      </select>
+                    </article>
+                  ))
+                )}
               </div>
+            </section>
+          )}
 
-              <details className="panel-subtle employee-register-panel">
-                <summary>Register New Employee</summary>
-                <form className="register-form" onSubmit={onRegister}>
-                  <div className="form-left">
-                    <label htmlFor="register-first-name">First name</label>
-                    <input
-                      id="register-first-name"
-                      value={form.firstName}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          firstName: event.target.value,
-                        }))
-                      }
-                      onInput={() => setRegisterError("")}
-                      required
-                    />
-                    <label htmlFor="register-last-name">Last name</label>
-                    <input
-                      id="register-last-name"
-                      value={form.lastName}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          lastName: event.target.value,
-                        }))
-                      }
-                      onInput={() => setRegisterError("")}
-                      required
-                    />
-                    <label htmlFor="register-email">Email</label>
-                    <input
-                      id="register-email"
-                      type="email"
-                      value={form.email}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          email: event.target.value,
-                        }))
-                      }
-                      onInput={() => setRegisterError("")}
-                      required
-                    />
-                    <label htmlFor="register-role">Role</label>
-                    <select
-                      id="register-role"
-                      value={form.role}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          role: event.target.value,
-                        }))
-                      }
-                    >
-                      {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
-                        <option key={roleOption}>{roleOption}</option>
-                      ))}
-                    </select>
-
-                    <label htmlFor="register-login-code">Login code</label>
-                    <input
-                      id="register-login-code"
-                      type="text"
-                      value={form.loginCode}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          loginCode: event.target.value,
-                        }))
-                      }
-                      onInput={() => setRegisterError("")}
-                      required
-                    />
-
-                    <label htmlFor="register-image">Profile image</label>
-                    <input
-                      id="register-image"
-                      ref={registerImageRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={onRegisterImageChange}
-                    />
-                    {registerImageDataUrl && (
-                      <img
-                        className="employee-avatar register-preview"
-                        src={registerImageDataUrl}
-                        alt="New employee preview"
-                      />
-                    )}
-                  </div>
-                  {registerError && (
-                    <p className="error" role="alert" aria-live="polite">
-                      {registerError}
-                    </p>
-                  )}
-                  <button className="btn" type="submit">
-                    Create employee
-                  </button>
-                </form>
-              </details>
+          {/* Registration section for creating new employee accounts. */}
+          {section === "register" && (
+            <section className="panel panel-register">
+              <h2>Add Team Member</h2>
+              <form className="register-form" onSubmit={onRegister}>
+                <div className="form-left">
+                  <label htmlFor="register-first-name">First name</label>
+                  <input
+                    id="register-first-name"
+                    value={form.firstName}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        firstName: event.target.value,
+                      }))
+                    }
+                    onInput={() => setRegisterError("")}
+                    required
+                  />
+                  <label htmlFor="register-last-name">Last name</label>
+                  <input
+                    id="register-last-name"
+                    value={form.lastName}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        lastName: event.target.value,
+                      }))
+                    }
+                    onInput={() => setRegisterError("")}
+                    required
+                  />
+                  <label htmlFor="register-email">Email</label>
+                  <input
+                    id="register-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        email: event.target.value,
+                      }))
+                    }
+                    onInput={() => setRegisterError("")}
+                    required
+                  />
+                  <label htmlFor="register-role">Role</label>
+                  <select
+                    id="register-role"
+                    value={form.role}
+                    onChange={(event) =>
+                      setForm((prev) => ({ ...prev, role: event.target.value }))
+                    }
+                  >
+                    {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
+                      <option key={roleOption}>{roleOption}</option>
+                    ))}
+                  </select>
+                </div>
+                {registerError && (
+                  <p className="error" role="alert" aria-live="polite">
+                    {registerError}
+                  </p>
+                )}
+                <button className="btn" type="submit">
+                  Add to Team
+                </button>
+              </form>
             </section>
           )}
 
           {/* Scheduling section for planning, assignment, and team visibility. */}
           {section === "schedule" && (
-            <section className="panel">
-              <h2>Work Schedule</h2>
-              <p className="muted planning-mode-note">
-                Planning mode controls schedule editing. When off, schedule is
-                locked.
-              </p>
-              <p className="muted planning-color-note">
-                Waiter/Head Waiter - Blue
-                <br />
-                Runner - Purple
+            <section className="panel panel-schedule">
+              <h2>Kitchen Schedule</h2>
+              <p className="muted">
+                Planning mode controls edits. Turn it off to lock the board.
               </p>
 
               <div className="schedule-tools-row">
@@ -560,7 +477,7 @@ export default function EmployerPage(): ReactElement {
                   onChange={(event) => setRoleFilter(event.target.value)}
                 >
                   <option value="all">All roles</option>
-                  {EMPLOYEE_ROLE_OPTIONS.map((role) => (
+                  {roles.map((role) => (
                     <option key={role}>{role}</option>
                   ))}
                 </select>
@@ -579,7 +496,7 @@ export default function EmployerPage(): ReactElement {
                 {store.employees.map((employee) => (
                   <button
                     key={employee.username}
-                    className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaff === employee.name ? "active" : ""}`}
+                    className={`staff-pool-pill ${selectedStaff === employee.name ? "active" : ""}`}
                     type="button"
                     disabled={!planningMode}
                     onClick={() => setSelectedStaff(employee.name)}
@@ -591,12 +508,7 @@ export default function EmployerPage(): ReactElement {
 
               <div className="schedule-grid-wrapper">
                 {/* Desktop planning grid: one row per shift, one column per day. */}
-                <div
-                  className="schedule-grid"
-                  style={{
-                    gridTemplateColumns: `180px repeat(${DAYS.length}, 220px)`,
-                  }}
-                >
+                <div className="schedule-grid schedule-grid-seven-days">
                   <div className="grid-cell header">Shift</div>
                   {DAYS.map((day) => (
                     <div className="grid-cell header" key={day}>
@@ -644,7 +556,7 @@ export default function EmployerPage(): ReactElement {
                                 {/* Slot blocks visualize assigned vs open staffing capacity. */}
                                 {slotBlocks.map((slot, index) => (
                                   <span
-                                    className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
+                                    className={`slot-block ${slot.type}`}
                                     key={`employer-grid-slot-${shift}-${day}-${index}`}
                                     title={slot.rawName || slot.label}
                                   >
@@ -706,7 +618,7 @@ export default function EmployerPage(): ReactElement {
                                 disabled={!selectedStaff}
                                 onClick={() => assignStaff(shift, day)}
                               >
-                                Add selected
+                                Add to slot
                               </button>
                             )}
                           </div>
@@ -764,7 +676,7 @@ export default function EmployerPage(): ReactElement {
                             >
                               {slotBlocks.map((slot, index) => (
                                 <span
-                                  className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
+                                  className={`slot-block ${slot.type}`}
                                   key={`employer-mobile-slot-${shift}-${day}-${index}`}
                                   title={slot.rawName || slot.label}
                                 >
@@ -820,7 +732,7 @@ export default function EmployerPage(): ReactElement {
                               disabled={!selectedStaff}
                               onClick={() => assignStaff(shift, day)}
                             >
-                              Add selected
+                              Add to slot
                             </button>
                           )}
                         </article>
@@ -957,27 +869,22 @@ export default function EmployerPage(): ReactElement {
                 </div>
               </details>
 
-              <details className="panel-subtle schedule-activity-panel">
+              <section className="panel-subtle schedule-activity-panel">
                 {/* Audit and handover requests keep planning decisions visible and actionable. */}
-                <summary>Recent Activity</summary>
+                <h3>Recent Activity</h3>
                 <div className="schedule-activity-list">
                   {store.scheduleAudit.length === 0 ? (
-                    <p className="muted">No schedule activity yet.</p>
+                    <p className="muted playful-empty">
+                      Nothing is cooking yet. Your schedule updates will appear
+                      here.
+                    </p>
                   ) : (
                     store.scheduleAudit.slice(0, 8).map((entry, index) => (
                       <article
                         className="schedule-activity-item"
                         key={`${entry.timestamp}-${index}`}
                       >
-                        <strong>
-                          {entry.action
-                            .split("-")
-                            .map(
-                              (word) =>
-                                word.charAt(0).toUpperCase() + word.slice(1),
-                            )
-                            .join(" ")}
-                        </strong>
+                        <strong>{entry.action.replace(/-/g, " ")}</strong>
                         <p>{entry.details}</p>
                       </article>
                     ))
@@ -987,7 +894,9 @@ export default function EmployerPage(): ReactElement {
                 <h3 className="requests-title">Shift Handover Requests</h3>
                 <div className="shift-request-list">
                   {store.shiftExchangeRequests.length === 0 ? (
-                    <p className="muted">No shift handover requests yet.</p>
+                    <p className="muted playful-empty">
+                      No handovers in the kitchen queue right now.
+                    </p>
                   ) : (
                     store.shiftExchangeRequests.slice(0, 8).map((request) => (
                       <article className="shift-request-item" key={request.id}>
@@ -1026,7 +935,7 @@ export default function EmployerPage(): ReactElement {
                     ))
                   )}
                 </div>
-              </details>
+              </section>
             </section>
           )}
         </main>
