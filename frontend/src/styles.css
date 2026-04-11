@@ -66,7 +66,7 @@ body {
 }
 
 .header-logo {
-    height: 48px;
+    height: 72px;
     width: auto;
     object-fit: contain;
 }
@@ -867,7 +867,7 @@ td:first-child {
     }
 
     .header-logo {
-        height: 40px;
+        height: 56px;
     }
 
     .form-grid {
