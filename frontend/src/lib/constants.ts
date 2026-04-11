@@ -7,8 +7,6 @@ export const EMPLOYEE_ROLE_OPTIONS = [
   "Waiter",
   "Runner",
   "Head Waiter",
-  "Chef",
-  "Bartender",
 ] as const;
 
 // Schedule role colors are applied in the UI through CSS classes.

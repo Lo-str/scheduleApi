@@ -269,6 +269,10 @@ summary:focus-visible {
     border: 1px solid #c9d8ea;
 }
 
+.employee-avatar.register-preview {
+    margin-top: 0.25rem;
+}
+
 .profile-header-card {
     display: flex;
     align-items: center;
@@ -286,6 +290,16 @@ summary:focus-visible {
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid #c9d8ea;
+}
+
+.login-code-field {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.login-code-field input {
+    flex: 1;
 }
 
 /* Schedule layout and interaction controls. */

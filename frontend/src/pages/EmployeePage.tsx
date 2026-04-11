@@ -1,14 +1,19 @@
 import {
+  type ChangeEvent,
   type FormEvent,
   Fragment,
   type ReactElement,
-  useMemo,
+  useRef,
   useState,
 } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { getProfileImage } from "../assets/profileImages";
-import { TOAST_DURATION_MS, getRoleColorClass } from "../lib/constants";
+import { getProfileImage, setProfileImage } from "../assets/profileImages";
+import {
+  EMPLOYEE_ROLE_OPTIONS,
+  TOAST_DURATION_MS,
+  getRoleColorClass,
+} from "../lib/constants";
 import {
   type AvailabilityByShift,
   type DayName,
@@ -37,6 +42,8 @@ type ProfileFormState = {
   name: string;
   email: string;
   phone: string;
+  role: string;
+  loginCode: string;
 };
 
 const AVAILABILITY_STATES = ["available", "maybe", "unavailable"] as const;
@@ -63,14 +70,23 @@ export default function EmployeePage(): ReactElement {
   const [giveawayTargetByKey, setGiveawayTargetByKey] = useState<
     Record<string, string>
   >({});
+  const [showLoginCode, setShowLoginCode] = useState(false);
+  const [selectedProfileImageDataUrl, setSelectedProfileImageDataUrl] =
+    useState("");
+  const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const myUser = store.users.find(
+    (entry) => entry.username === safeSessionUser.username,
+  );
+  const myEmployee = store.employees.find(
     (entry) => entry.username === safeSessionUser.username,
   );
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
     name: myUser?.name || "",
     email: myUser?.email || "",
     phone: myUser?.phone || "",
+    role: myEmployee?.role || "Waiter",
+    loginCode: myUser?.password || "",
   });
   const [availabilityDraft, setAvailabilityDraft] =
     useState<AvailabilityByShift>(() =>
@@ -79,11 +95,6 @@ export default function EmployeePage(): ReactElement {
   const isScheduleEditable = !compactMode;
 
   if (!sessionUser) return <Navigate to="/login" replace />;
-
-  const roles = useMemo(
-    () => [...new Set(store.employees.map((entry) => entry.role))],
-    [store.employees],
-  );
 
   // Show a short confirmation toast.
   const showToast = (message: string): void => {
@@ -179,6 +190,14 @@ export default function EmployeePage(): ReactElement {
     );
     if (!updated) return;
 
+    if (selectedProfileImageDataUrl) {
+      setProfileImage(sessionUser.username, selectedProfileImageDataUrl);
+      if (profileImageInputRef.current) {
+        profileImageInputRef.current.value = "";
+      }
+      setSelectedProfileImageDataUrl("");
+    }
+
     appendScheduleAudit(nextStore, {
       actor: sessionUser.username,
       role: "employee",
@@ -188,6 +207,28 @@ export default function EmployeePage(): ReactElement {
 
     refresh();
     showToast("Profile updated");
+  };
+
+  const onProfileImageChange = (
+    event: ChangeEvent<HTMLInputElement>,
+  ): void => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setSelectedProfileImageDataUrl("");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      window.alert("Please select an image file.");
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedProfileImageDataUrl(
+        typeof reader.result === "string" ? reader.result : "",
+      );
+    };
+    reader.readAsDataURL(file);
   };
 
   // Rotate one availability cell to the next state.
@@ -342,11 +383,11 @@ export default function EmployeePage(): ReactElement {
           {section === "profile" && (
             <section className="panel">
               <h2>My Profile</h2>
-              {myUser && getProfileImage(myUser.username) ? (
+              {myUser && (selectedProfileImageDataUrl || getProfileImage(myUser.username)) ? (
                 <div className="profile-header-card">
                   <img
                     className="profile-avatar"
-                    src={getProfileImage(myUser.username)}
+                    src={selectedProfileImageDataUrl || getProfileImage(myUser.username)}
                     alt={myUser.name}
                   />
                   <div>
@@ -390,6 +431,51 @@ export default function EmployeePage(): ReactElement {
                       phone: event.target.value,
                     }))
                   }
+                />
+                <label htmlFor="profile-role">Role</label>
+                <select
+                  id="profile-role"
+                  value={profileForm.role}
+                  onChange={(event) =>
+                    setProfileForm((prev) => ({
+                      ...prev,
+                      role: event.target.value,
+                    }))
+                  }
+                >
+                  {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
+                    <option key={roleOption}>{roleOption}</option>
+                  ))}
+                </select>
+                <label htmlFor="profile-login-code">Login code</label>
+                <div className="login-code-field">
+                  <input
+                    id="profile-login-code"
+                    type={showLoginCode ? "text" : "password"}
+                    value={profileForm.loginCode}
+                    onChange={(event) =>
+                      setProfileForm((prev) => ({
+                        ...prev,
+                        loginCode: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                  <button
+                    className="btn btn-secondary tiny"
+                    type="button"
+                    onClick={() => setShowLoginCode((prev) => !prev)}
+                  >
+                    {showLoginCode ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <label htmlFor="profile-image">Profile picture</label>
+                <input
+                  id="profile-image"
+                  ref={profileImageInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={onProfileImageChange}
                 />
                 <div />
                 <button className="btn" type="submit">
@@ -608,7 +694,7 @@ export default function EmployeePage(): ReactElement {
                     onChange={(event) => setRoleFilter(event.target.value)}
                   >
                     <option value="all">All roles</option>
-                    {roles.map((role) => (
+                    {EMPLOYEE_ROLE_OPTIONS.map((role) => (
                       <option key={role}>{role}</option>
                     ))}
                   </select>
