@@ -1,16 +1,18 @@
 import {
+  type ChangeEvent,
   type FormEvent,
   Fragment,
   type ReactElement,
-  useMemo,
+  useRef,
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { getProfileImage } from "../assets/profileImages";
+import { getProfileImage, setProfileImage } from "../assets/profileImages";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
+  getRoleColorClass,
   TOAST_DURATION_MS,
 } from "../lib/constants";
 import {
@@ -35,13 +37,14 @@ import {
   addEmployee,
 } from "../lib/store";
 
-type EmployerSection = "employees" | "register" | "schedule";
+type EmployerSection = "employees" | "schedule";
 
 type EmployeeFormState = {
   firstName: string;
   lastName: string;
   email: string;
   role: string;
+  loginCode: string;
 };
 
 type RequestReviewStatus = "approved" | "rejected";
@@ -58,17 +61,15 @@ export default function EmployerPage(): ReactElement {
   const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(false);
   const [toast, setToast] = useState("");
   const [registerError, setRegisterError] = useState("");
+  const [registerImageDataUrl, setRegisterImageDataUrl] = useState("");
+  const registerImageRef = useRef<HTMLInputElement | null>(null);
   const [form, setForm] = useState<EmployeeFormState>({
     firstName: "",
     lastName: "",
     email: "",
     role: "Waiter",
+    loginCode: "",
   });
-
-  const roles = useMemo(
-    () => [...new Set(store.employees.map((entry) => entry.role))],
-    [store.employees],
-  );
 
   const getFirstName = (name: string): string => {
     const trimmed = name.trim();
@@ -95,11 +96,13 @@ export default function EmployerPage(): ReactElement {
     type: "assigned" | "open";
     label: string;
     rawName?: string;
+    role?: string;
   }> => {
     const assigned = names.map((name) => ({
       type: "assigned" as const,
       label: getFirstName(name),
       rawName: name,
+      role: store.employees.find((entry) => entry.name === name)?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -209,24 +212,67 @@ export default function EmployerPage(): ReactElement {
       setRegisterError("Enter a valid email address.");
       return;
     }
+    const loginCode = form.loginCode.trim();
+    if (!loginCode) {
+      setRegisterError("Enter a login code for the employee.");
+      return;
+    }
 
     const nextStore = getStore();
-    addEmployee(nextStore, {
+    const createdEmployee = addEmployee(nextStore, {
       name: fullName,
       role: form.role,
+      loginCode,
       email,
     });
+    if (registerImageDataUrl) {
+      setProfileImage(createdEmployee.username, registerImageDataUrl);
+    }
     appendScheduleAudit(nextStore, {
       actor: "admin",
       role: "employer",
       action: "create-employee",
       details: `${fullName} created as ${form.role}`,
     });
-    setForm({ firstName: "", lastName: "", email: "", role: "Waiter" });
+    setForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      role: "Waiter",
+      loginCode: "",
+    });
+    setRegisterImageDataUrl("");
+    if (registerImageRef.current) {
+      registerImageRef.current.value = "";
+    }
     setRegisterError("");
     setStore(nextStore);
     setSection("employees");
     showToast("Employee created");
+  };
+
+  const onRegisterImageChange = (
+    event: ChangeEvent<HTMLInputElement>,
+  ): void => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setRegisterImageDataUrl("");
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setRegisterError("Profile image must be an image file.");
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRegisterImageDataUrl(typeof reader.result === "string" ? reader.result : "");
+      setRegisterError("");
+    };
+    reader.onerror = () => {
+      setRegisterError("Could not read selected image.");
+    };
+    reader.readAsDataURL(file);
   };
 
   // Update an employee role from the employee list.
@@ -301,14 +347,6 @@ export default function EmployerPage(): ReactElement {
               List of Employees
             </button>
             <button
-              className={`sidebar-btn ${section === "register" ? "active" : ""}`}
-              type="button"
-              aria-pressed={section === "register"}
-              onClick={() => setSection("register")}
-            >
-              Register Employee
-            </button>
-            <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
               aria-pressed={section === "schedule"}
@@ -340,7 +378,13 @@ export default function EmployerPage(): ReactElement {
                     <p>{employee.email}</p>
                     <label className="inline-label">Role</label>
                     <select
-                      value={employee.role}
+                      value={
+                        EMPLOYEE_ROLE_OPTIONS.includes(
+                          employee.role as (typeof EMPLOYEE_ROLE_OPTIONS)[number],
+                        )
+                          ? employee.role
+                          : "Waiter"
+                      }
                       aria-label={`Role for ${employee.name}`}
                       onChange={(event) =>
                         onRoleChange(employee.name, event.target.value)
@@ -353,77 +397,105 @@ export default function EmployerPage(): ReactElement {
                   </article>
                 ))}
               </div>
-            </section>
-          )}
 
-          {/* Registration section for creating new employee accounts. */}
-          {section === "register" && (
-            <section className="panel">
-              <h2>Register New Employee</h2>
-              <form className="register-form" onSubmit={onRegister}>
-                <div className="form-left">
-                  <label htmlFor="register-first-name">First name</label>
-                  <input
-                    id="register-first-name"
-                    value={form.firstName}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        firstName: event.target.value,
-                      }))
-                    }
-                    onInput={() => setRegisterError("")}
-                    required
-                  />
-                  <label htmlFor="register-last-name">Last name</label>
-                  <input
-                    id="register-last-name"
-                    value={form.lastName}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        lastName: event.target.value,
-                      }))
-                    }
-                    onInput={() => setRegisterError("")}
-                    required
-                  />
-                  <label htmlFor="register-email">Email</label>
-                  <input
-                    id="register-email"
-                    type="email"
-                    value={form.email}
-                    onChange={(event) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        email: event.target.value,
-                      }))
-                    }
-                    onInput={() => setRegisterError("")}
-                    required
-                  />
-                  <label htmlFor="register-role">Role</label>
-                  <select
-                    id="register-role"
-                    value={form.role}
-                    onChange={(event) =>
-                      setForm((prev) => ({ ...prev, role: event.target.value }))
-                    }
-                  >
-                    {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
-                      <option key={roleOption}>{roleOption}</option>
-                    ))}
-                  </select>
-                </div>
-                {registerError && (
-                  <p className="error" role="alert" aria-live="polite">
-                    {registerError}
-                  </p>
-                )}
-                <button className="btn" type="submit">
-                  Create employee
-                </button>
-              </form>
+              <details className="panel-subtle employee-register-panel">
+                <summary>Register New Employee</summary>
+                <form className="register-form" onSubmit={onRegister}>
+                  <div className="form-left">
+                    <label htmlFor="register-first-name">First name</label>
+                    <input
+                      id="register-first-name"
+                      value={form.firstName}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          firstName: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+                    <label htmlFor="register-last-name">Last name</label>
+                    <input
+                      id="register-last-name"
+                      value={form.lastName}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          lastName: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+                    <label htmlFor="register-email">Email</label>
+                    <input
+                      id="register-email"
+                      type="email"
+                      value={form.email}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          email: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+                    <label htmlFor="register-role">Role</label>
+                    <select
+                      id="register-role"
+                      value={form.role}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, role: event.target.value }))
+                      }
+                    >
+                      {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
+                        <option key={roleOption}>{roleOption}</option>
+                      ))}
+                    </select>
+
+                    <label htmlFor="register-login-code">Login code</label>
+                    <input
+                      id="register-login-code"
+                      type="text"
+                      value={form.loginCode}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          loginCode: event.target.value,
+                        }))
+                      }
+                      onInput={() => setRegisterError("")}
+                      required
+                    />
+
+                    <label htmlFor="register-image">Profile image</label>
+                    <input
+                      id="register-image"
+                      ref={registerImageRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={onRegisterImageChange}
+                    />
+                    {registerImageDataUrl && (
+                      <img
+                        className="employee-avatar register-preview"
+                        src={registerImageDataUrl}
+                        alt="New employee preview"
+                      />
+                    )}
+                  </div>
+                  {registerError && (
+                    <p className="error" role="alert" aria-live="polite">
+                      {registerError}
+                    </p>
+                  )}
+                  <button className="btn" type="submit">
+                    Create employee
+                  </button>
+                </form>
+              </details>
             </section>
           )}
 
@@ -456,7 +528,7 @@ export default function EmployerPage(): ReactElement {
                   onChange={(event) => setRoleFilter(event.target.value)}
                 >
                   <option value="all">All roles</option>
-                  {roles.map((role) => (
+                  {EMPLOYEE_ROLE_OPTIONS.map((role) => (
                     <option key={role}>{role}</option>
                   ))}
                 </select>
@@ -540,7 +612,7 @@ export default function EmployerPage(): ReactElement {
                                 {/* Slot blocks visualize assigned vs open staffing capacity. */}
                                 {slotBlocks.map((slot, index) => (
                                   <span
-                                    className={`slot-block ${slot.type}`}
+                                    className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                     key={`employer-grid-slot-${shift}-${day}-${index}`}
                                     title={slot.rawName || slot.label}
                                   >
@@ -660,7 +732,7 @@ export default function EmployerPage(): ReactElement {
                             >
                               {slotBlocks.map((slot, index) => (
                                 <span
-                                  className={`slot-block ${slot.type}`}
+                                  className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
                                   key={`employer-mobile-slot-${shift}-${day}-${index}`}
                                   title={slot.rawName || slot.label}
                                 >

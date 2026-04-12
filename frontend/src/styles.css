@@ -66,7 +66,7 @@ body {
 }
 
 .header-logo {
-    height: 48px;
+    height: 72px;
     width: auto;
     object-fit: contain;
 }
@@ -269,6 +269,10 @@ summary:focus-visible {
     border: 1px solid #c9d8ea;
 }
 
+.employee-avatar.register-preview {
+    margin-top: 0.25rem;
+}
+
 .profile-header-card {
     display: flex;
     align-items: center;
@@ -286,6 +290,16 @@ summary:focus-visible {
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid #c9d8ea;
+}
+
+.login-code-field {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.login-code-field input {
+    flex: 1;
 }
 
 /* Schedule layout and interaction controls. */
@@ -517,6 +531,28 @@ summary:focus-visible {
 .slot-block.assigned {
     background: #e9f2fc;
     color: #1f4d78;
+}
+
+.slot-block.assigned.role-color {
+    border-width: 2px;
+}
+
+.slot-block.assigned.role-color.waiter {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border-color: #60a5fa;
+}
+
+.slot-block.assigned.role-color.runner {
+    background: #f0e5ff;
+    color: #6d28d9;
+    border-color: #a855f7;
+}
+
+.slot-block.assigned.role-color.default {
+    background: #eef2f7;
+    color: #35506f;
+    border-color: #aac3df;
 }
 
 .slot-block.assigned.mine {
@@ -831,7 +867,7 @@ td:first-child {
     }
 
     .header-logo {
-        height: 40px;
+        height: 56px;
     }
 
     .form-grid {

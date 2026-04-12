@@ -26,7 +26,13 @@ export function updateEmployeeRole(
 // Add a new employee and linked login user.
 export function addEmployee(
   store: Store,
-  payload: { name: string; role: string; email?: string; phone?: string },
+  payload: {
+    name: string;
+    role: string;
+    loginCode: string;
+    email?: string;
+    phone?: string;
+  },
 ): Employee {
   const usernameBase =
     payload.name
@@ -43,7 +49,7 @@ export function addEmployee(
 
   const user: User = {
     username,
-    password: "1234",
+    password: payload.loginCode,
     role: "employee",
     name: payload.name,
     email: payload.email || "",
@@ -69,7 +75,13 @@ export function addEmployee(
 export function updateUserProfile(
   store: Store,
   username: string,
-  updates: { name: string; email: string; phone: string },
+  updates: {
+    name: string;
+    email: string;
+    phone: string;
+    role: string;
+    loginCode: string;
+  },
 ): User | null {
   const user = store.users.find((entry) => entry.username === username);
   const employee = store.employees.find((entry) => entry.username === username);
@@ -79,10 +91,12 @@ export function updateUserProfile(
   user.name = updates.name;
   user.email = updates.email;
   user.phone = updates.phone;
+  user.password = updates.loginCode;
 
   employee.name = updates.name;
   employee.email = updates.email;
   employee.phone = updates.phone;
+  employee.role = updates.role;
 
   SHIFTS.forEach((shift) => {
     DAYS.forEach((day) => {

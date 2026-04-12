@@ -182,7 +182,7 @@ const defaultStore: Store = {
     {
       username: "mateo",
       name: "Mateo Fernández",
-      role: "Chef",
+      role: "Head Waiter",
       email: "mateo@sundsgarden.se",
       phone: "070-200 20 20",
     },
@@ -196,7 +196,7 @@ const defaultStore: Store = {
     {
       username: "aria",
       name: "Aria Novak",
-      role: "Bartender",
+      role: "Runner",
       email: "aria@sundsgarden.se",
       phone: "070-400 40 40",
     },
