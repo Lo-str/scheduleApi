@@ -35,6 +35,7 @@ import {
   toAssignmentArray,
   updateEmployeeRole,
   addEmployee,
+  getCurrentUser,
 } from "../lib/store";
 
 type EmployerSection = "employees" | "schedule";
@@ -52,13 +53,14 @@ type RequestReviewStatus = "approved" | "rejected";
 // Render employer dashboard with staff and schedule controls.
 export default function EmployerPage(): ReactElement {
   const navigate = useNavigate();
+  const sessionUser = getCurrentUser();
   const [store, setStore] = useState<Store>(() => getStore());
   const [section, setSection] = useState<EmployerSection>("employees");
   const [selectedStaff, setSelectedStaff] = useState("");
   const [dayFilter, setDayFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);
-  const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(false);
+  const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(true);
   const [toast, setToast] = useState("");
   const [registerError, setRegisterError] = useState("");
   const [registerImageDataUrl, setRegisterImageDataUrl] = useState("");
@@ -70,6 +72,12 @@ export default function EmployerPage(): ReactElement {
     role: "Waiter",
     loginCode: "",
   });
+  const headerName =
+    sessionUser?.name || sessionUser?.username || "Employer Account";
+  const headerAvatar = sessionUser
+    ? getProfileImage(sessionUser.username)
+    : undefined;
+  const headerInitial = headerName.slice(0, 1).toUpperCase();
 
   const getFirstName = (name: string): string => {
     const trimmed = name.trim();
@@ -266,7 +274,9 @@ export default function EmployerPage(): ReactElement {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setRegisterImageDataUrl(typeof reader.result === "string" ? reader.result : "");
+      setRegisterImageDataUrl(
+        typeof reader.result === "string" ? reader.result : "",
+      );
       setRegisterError("");
     };
     reader.onerror = () => {
@@ -315,10 +325,24 @@ export default function EmployerPage(): ReactElement {
   };
 
   return (
-    <div className="page">
+    <div className="page app-page">
       {/* Global dashboard header with employer context and quick logout. */}
       <header className="topbar">
         <div className="topbar-left">
+          {headerAvatar ? (
+            <img
+              className="topbar-avatar"
+              src={headerAvatar}
+              alt={headerName}
+            />
+          ) : (
+            <div
+              className="topbar-avatar topbar-avatar-fallback"
+              aria-hidden="true"
+            >
+              {headerInitial}
+            </div>
+          )}
           <h1>Employer</h1>
           <p className="topbar-subtitle">Schedule Administration</p>
         </div>
@@ -447,7 +471,10 @@ export default function EmployerPage(): ReactElement {
                       id="register-role"
                       value={form.role}
                       onChange={(event) =>
-                        setForm((prev) => ({ ...prev, role: event.target.value }))
+                        setForm((prev) => ({
+                          ...prev,
+                          role: event.target.value,
+                        }))
                       }
                     >
                       {EMPLOYEE_ROLE_OPTIONS.map((roleOption) => (
@@ -503,9 +530,14 @@ export default function EmployerPage(): ReactElement {
           {section === "schedule" && (
             <section className="panel">
               <h2>Work Schedule</h2>
-              <p className="muted">
+              <p className="muted planning-mode-note">
                 Planning mode controls schedule editing. When off, schedule is
                 locked.
+              </p>
+              <p className="muted planning-color-note">
+                Waiter/Head Waiter - Blue
+                <br />
+                Runner - Purple
               </p>
 
               <div className="schedule-tools-row">
@@ -547,7 +579,7 @@ export default function EmployerPage(): ReactElement {
                 {store.employees.map((employee) => (
                   <button
                     key={employee.username}
-                    className={`staff-pool-pill ${selectedStaff === employee.name ? "active" : ""}`}
+                    className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaff === employee.name ? "active" : ""}`}
                     type="button"
                     disabled={!planningMode}
                     onClick={() => setSelectedStaff(employee.name)}
@@ -925,9 +957,9 @@ export default function EmployerPage(): ReactElement {
                 </div>
               </details>
 
-              <section className="panel-subtle schedule-activity-panel">
+              <details className="panel-subtle schedule-activity-panel">
                 {/* Audit and handover requests keep planning decisions visible and actionable. */}
-                <h3>Recent Activity</h3>
+                <summary>Recent Activity</summary>
                 <div className="schedule-activity-list">
                   {store.scheduleAudit.length === 0 ? (
                     <p className="muted">No schedule activity yet.</p>
@@ -937,7 +969,15 @@ export default function EmployerPage(): ReactElement {
                         className="schedule-activity-item"
                         key={`${entry.timestamp}-${index}`}
                       >
-                        <strong>{entry.action.replace(/-/g, " ")}</strong>
+                        <strong>
+                          {entry.action
+                            .split("-")
+                            .map(
+                              (word) =>
+                                word.charAt(0).toUpperCase() + word.slice(1),
+                            )
+                            .join(" ")}
+                        </strong>
                         <p>{entry.details}</p>
                       </article>
                     ))
@@ -986,7 +1026,7 @@ export default function EmployerPage(): ReactElement {
                     ))
                   )}
                 </div>
-              </section>
+              </details>
             </section>
           )}
         </main>

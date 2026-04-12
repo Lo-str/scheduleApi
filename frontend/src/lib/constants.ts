@@ -13,9 +13,8 @@ export const EMPLOYEE_ROLE_OPTIONS = [
 export function getRoleColorClass(role: string): string {
   const normalized = role.trim().toLowerCase();
   if (normalized === "runner") return "role-color runner";
-  if (normalized === "waiter" || normalized === "head waiter") {
-    return "role-color waiter";
-  }
+  if (normalized === "head waiter") return "role-color head-waiter";
+  if (normalized === "waiter") return "role-color waiter";
   return "role-color default";
 }
 

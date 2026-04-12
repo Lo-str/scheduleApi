@@ -1,7 +1,7 @@
 import { type FormEvent, type ReactElement, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { appApi } from "../lib/api";
-import logo from "../assets/logo.png";
+import loginLogo from "../assets/login-logo.png";
 
 type LoginFormState = {
   username: string;
@@ -36,65 +36,78 @@ export default function LoginPage(): ReactElement {
 
   return (
     <div className="page login-page">
-      {/* Login header keeps branding and route context consistent with dashboards. */}
-      <header className="topbar">
-        <div className="topbar-left">
-          <h1>Login</h1>
-          <p className="topbar-subtitle">Schedule Login</p>
-        </div>
-        <img
-          className="header-logo"
-          src={logo}
-          alt="Sundsgarden Hotell och Konferens"
-        />
-      </header>
+      <main className="pet-login-shell">
+        <section className="pet-login-card">
+          <img
+            className="pet-login-logo"
+            src={loginLogo}
+            alt="Paws and Plates logo - a stylized paw print with a plate and utensils"
+          />
 
-      <main className="center-main">
-        {/* Single-panel login flow with role-aware credential check. */}
-        <section className="panel login-panel">
-          <h2>Login</h2>
-          <p className="muted">
-            Use employee password 1234 or admin/1234 for employer.
-          </p>
+          <form className="pet-login-form" onSubmit={onSubmit}>
+            <label className="pet-field-label" htmlFor="username">
+              Username or email
+            </label>
+            <div className="pet-input-wrap">
+              <span className="pet-input-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
+                </svg>
+              </span>
+              <input
+                id="username"
+                value={form.username}
+                autoComplete="username"
+                placeholder="Your username or email"
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, username: event.target.value }))
+                }
+                onInput={() => setError("")}
+                aria-describedby={error ? "login-error" : undefined}
+                required
+              />
+            </div>
 
-          <form className="form-grid" onSubmit={onSubmit}>
-            {/* Username and password map directly to auth validation. */}
-            <label htmlFor="username">Username</label>
-            <input
-              id="username"
-              value={form.username}
-              autoComplete="username"
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, username: event.target.value }))
-              }
-              onInput={() => setError("")}
-              aria-describedby={error ? "login-error" : undefined}
-              required
-            />
+            <label className="pet-field-label" htmlFor="password">
+              Pawsword
+            </label>
+            <div className="pet-input-wrap">
+              <span className="pet-input-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <circle cx="8" cy="12" r="3.2" />
+                  <path d="M11.2 12H20" />
+                  <path d="M16.2 12v2.2" />
+                  <path d="M18.4 12v1.6" />
+                </svg>
+              </span>
+              <input
+                id="password"
+                type="password"
+                value={form.password}
+                autoComplete="current-password"
+                placeholder="Your password"
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, password: event.target.value }))
+                }
+                onInput={() => setError("")}
+                aria-describedby={error ? "login-error" : undefined}
+                required
+              />
+            </div>
 
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={form.password}
-              autoComplete="current-password"
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, password: event.target.value }))
-              }
-              onInput={() => setError("")}
-              aria-describedby={error ? "login-error" : undefined}
-              required
-            />
-
-            <div />
-            <button className="btn" type="submit" disabled={isSubmitDisabled}>
+            <button
+              className="pet-login-button"
+              type="submit"
+              disabled={isSubmitDisabled}
+            >
               Sign in
             </button>
           </form>
 
           {error && (
             <p
-              className="error"
+              className="error pet-login-error"
               id="login-error"
               role="alert"
               aria-live="polite"
