@@ -10,6 +10,12 @@ import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { getProfileImage, setProfileImage } from "../assets/profileImages";
 import {
+  getSchedule,
+  assignEmployee,
+  removeEmployee,
+  type ScheduleEntry,
+} from "../lib/api";
+import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
   getRoleColorClass,
@@ -87,9 +93,10 @@ export default function EmployerPage(): ReactElement {
   const sessionUser = getCurrentUser();
   const [store, setStore] = useState<Store>(() => getStore());
   const [section, setSection] = useState<EmployerSection>("employees");
-  const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
-  const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
-  const weekDays = buildWeekDays(weekStartIso);
+const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
+const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
+const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
+const weekDays = buildWeekDays(weekStartIso);
   const [dayFilter, setDayFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);
@@ -116,6 +123,25 @@ export default function EmployerPage(): ReactElement {
     const trimmed = name.trim();
     if (!trimmed) return "";
     return trimmed.split(/\s+/)[0];
+  };
+
+  const getEmployeeIdByName = (name: string): number | null => {
+    for (const entry of scheduleEntries) {
+      for (const emp of entry.employees) {
+        if (emp.name === name) return emp.id;
+      }
+    }
+    return null;
+  };
+
+  const loadSchedule = async (): Promise<void> => {
+    try {
+      const res = await getSchedule();
+      setScheduleEntries(res.data);
+    } catch (err) {
+      console.error("Failed to load schedule:", err);
+      window.alert("Failed to load schedule from backend");
+    }
   };
 
   const getFilteredAssignmentsForCell = (
@@ -199,34 +225,34 @@ export default function EmployerPage(): ReactElement {
   ): void => {
     if (!planningMode) return;
 if (!selectedStaffUsername) return;
-const nextStore = getStore();
-const selectedEmployee = nextStore.employees.find(
-  (entry) => entry.username === selectedStaffUsername,
-);
-if (!selectedEmployee) return;
 
-const validation = canAssignEmployeeToShift(
-  nextStore,
-  shift,
-  dayLabel,
-  selectedEmployee.name,
-);
-    if (!validation.ok) {
-      window.alert(validation.reason);
+    const selectedEmployee = store.employees.find(
+      (e) => e.username === selectedStaffUsername,
+    );
+    if (!selectedEmployee) return;
+
+    const employeeId = getEmployeeIdByName(selectedEmployee.name);
+    if (!employeeId) {
+      window.alert("Employee not found in schedule data");
       return;
     }
 
-nextStore.jobSchedule[shift][dayLabel] = [
-  ...toAssignmentArray(nextStore.jobSchedule[shift][dayLabel]),
-  selectedEmployee.name,
-];
-    appendScheduleAudit(nextStore, {
-      actor: "admin",
-      role: "employer",
-      action: "add-assignment",
-      details: `${selectedEmployee.name} -> ${formatShiftLabel(shift)} ${isoDate}`,
-    });
-    setStore(nextStore);
+    assignEmployee({
+      shift,
+      date: isoDate,
+      employeeId,
+    })
+      .then(() => {
+        showToast("Employee assigned");
+        loadSchedule();
+      })
+      .catch((err) => {
+        console.error("Failed to assign employee:", err);
+        window.alert(
+          "Failed to assign employee: " +
+            (err.response?.data?.message || err.message),
+        );
+      });
   };
 
   // Remove one employee assignment from a shift cell.
