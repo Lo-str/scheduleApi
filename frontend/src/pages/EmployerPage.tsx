@@ -93,10 +93,10 @@ export default function EmployerPage(): ReactElement {
   const sessionUser = getCurrentUser();
   const [store, setStore] = useState<Store>(() => getStore());
   const [section, setSection] = useState<EmployerSection>("employees");
-const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
-const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
-const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
-const weekDays = buildWeekDays(weekStartIso);
+  const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
+  const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
+  const weekDays = buildWeekDays(weekStartIso);
   const [dayFilter, setDayFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);
@@ -224,7 +224,7 @@ const weekDays = buildWeekDays(weekStartIso);
     isoDate: string,
   ): void => {
     if (!planningMode) return;
-if (!selectedStaffUsername) return;
+    if (!selectedStaffUsername) return;
 
     const selectedEmployee = store.employees.find(
       (e) => e.username === selectedStaffUsername,
@@ -263,17 +263,29 @@ if (!selectedStaffUsername) return;
     name: string,
   ): void => {
     if (!planningMode) return;
-    const nextStore = getStore();
-    nextStore.jobSchedule[shift][dayLabel] = toAssignmentArray(
-      nextStore.jobSchedule[shift][dayLabel],
-    ).filter((entry) => entry !== name);
-    appendScheduleAudit(nextStore, {
-      actor: "admin",
-      role: "employer",
-      action: "remove-assignment",
-      details: `${name} removed from ${formatShiftLabel(shift)} ${isoDate}`,
-    });
-    setStore(nextStore);
+
+    const employeeId = getEmployeeIdByName(name);
+    if (!employeeId) {
+      window.alert("Employee not found in schedule data");
+      return;
+    }
+
+    removeEmployee({
+      shift,
+      date: isoDate,
+      employeeId,
+    })
+      .then(() => {
+        showToast("Employee removed");
+        loadSchedule();
+      })
+      .catch((err) => {
+        console.error("Failed to remove employee:", err);
+        window.alert(
+          "Failed to remove employee: " +
+            (err.response?.data?.message || err.message),
+        );
+      });
   };
 
   // Create a new employee user from the register form.
