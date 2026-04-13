@@ -3,6 +3,7 @@ import {
   type FormEvent,
   Fragment,
   type ReactElement,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -191,6 +192,24 @@ export default function EmployerPage(): ReactElement {
   const logout = (): void => {
     clearCurrentUser();
     navigate("/login", { replace: true });
+  };
+
+  // Load schedule from backend when entering schedule section.
+  useEffect(() => {
+    if (section === "schedule") {
+      loadSchedule();
+    }
+  }, [section]);
+
+  // Retrieve employee names assigned to a shift/date from backend entries.
+  const getBackendAssignmentsForShiftDate = (
+    shiftName: ShiftName,
+    isoDate: string,
+  ): string[] => {
+    const entry = scheduleEntries.find(
+      (e) => e.shift.shift === shiftName && e.date.slice(0, 10) === isoDate,
+    );
+    return entry?.employees.map((emp) => emp.name) ?? [];
   };
 
   // Increase or decrease required staff count for a shift cell.
@@ -694,8 +713,9 @@ export default function EmployerPage(): ReactElement {
                         {formatShiftLabel(shift)}
                       </div>
                       {weekDays.map((day) => {
-                        const assignments = toAssignmentArray(
-                          store.jobSchedule[shift][day.label],
+                        const assignments = getBackendAssignmentsForShiftDate(
+                          shift,
+                          day.isoDate,
                         );
                         const filtered = getFilteredAssignmentsForCell(
                           assignments,
@@ -813,8 +833,9 @@ export default function EmployerPage(): ReactElement {
                   >
                     <h3>{formatShiftLabel(shift)}</h3>
                     {weekDays.map((day) => {
-                      const assignments = toAssignmentArray(
-                        store.jobSchedule[shift][day.label],
+                      const assignments = getBackendAssignmentsForShiftDate(
+                        shift,
+                        day.isoDate,
                       );
                       const filtered = assignments.filter((name) => {
                         if (dayFilter !== "all" && dayFilter !== day.label)
