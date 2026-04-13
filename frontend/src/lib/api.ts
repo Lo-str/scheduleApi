@@ -46,7 +46,13 @@ export const appApi = {
 
 // ---- SCHEDULE API ----
 
-type Shift = 'MORNING' | 'AFTERNOON' | 'NIGHT';
+type Shift = "MORNING" | "AFTERNOON" | "NIGHT";
+
+export type EmployeeRecord = {
+  id: number;
+  firstName: string;
+  lastName: string;
+};
 
 type SchedulePayload = {
   shift: Shift;
@@ -56,15 +62,15 @@ type SchedulePayload = {
 
 type ScheduleEmployee = {
   id: number;
-  name: string; 
-}
+  name: string;
+};
 
 type ScheduleShift = {
   id: number;
   shift: Shift;
 };
 
-type ScheduleEntry = {
+export type ScheduleEntry = {
   id: number;
   date: string;
   shiftId: number;
@@ -75,17 +81,27 @@ type ScheduleEntry = {
 type ScheduleResponse = {
   success: boolean;
   data: ScheduleEntry[];
-}
+};
+
+type EmployeesResponse = {
+  success: boolean;
+  data: EmployeeRecord[];
+};
 
 type ScheduleMutationResponse = {
   success: boolean;
   message: string;
   data: ScheduleEntry;
-}
+};
 
 // Fetch the full schedule from the backend
 export const getSchedule = async (): Promise<ScheduleResponse> => {
   const res = await axios.get("/api/schedule");
+  return res.data;
+};
+
+export const getEmployees = async (): Promise<EmployeesResponse> => {
+  const res = await axios.get("/api/employees");
   return res.data;
 };
 
@@ -102,6 +118,3 @@ export const removeEmployee = async (
   const res = await axios.put("/api/schedule/remove", payload);
   return res.data;
 };
-
-
-
