@@ -87,7 +87,7 @@ export default function EmployerPage(): ReactElement {
   const sessionUser = getCurrentUser();
   const [store, setStore] = useState<Store>(() => getStore());
   const [section, setSection] = useState<EmployerSection>("employees");
-  const [selectedStaff, setSelectedStaff] = useState("");
+  const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
   const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
   const weekDays = buildWeekDays(weekStartIso);
   const [dayFilter, setDayFilter] = useState("all");
@@ -198,28 +198,33 @@ export default function EmployerPage(): ReactElement {
     isoDate: string,
   ): void => {
     if (!planningMode) return;
-    if (!selectedStaff) return;
-    const nextStore = getStore();
-    const validation = canAssignEmployeeToShift(
-      nextStore,
-      shift,
-      dayLabel,
-      selectedStaff,
-    );
+if (!selectedStaffUsername) return;
+const nextStore = getStore();
+const selectedEmployee = nextStore.employees.find(
+  (entry) => entry.username === selectedStaffUsername,
+);
+if (!selectedEmployee) return;
+
+const validation = canAssignEmployeeToShift(
+  nextStore,
+  shift,
+  dayLabel,
+  selectedEmployee.name,
+);
     if (!validation.ok) {
       window.alert(validation.reason);
       return;
     }
 
-    nextStore.jobSchedule[shift][dayLabel] = [
-      ...toAssignmentArray(nextStore.jobSchedule[shift][dayLabel]),
-      selectedStaff,
-    ];
+nextStore.jobSchedule[shift][dayLabel] = [
+  ...toAssignmentArray(nextStore.jobSchedule[shift][dayLabel]),
+  selectedEmployee.name,
+];
     appendScheduleAudit(nextStore, {
       actor: "admin",
       role: "employer",
       action: "add-assignment",
-      details: `${selectedStaff} -> ${formatShiftLabel(shift)} ${isoDate}`,
+      details: `${selectedEmployee.name} -> ${formatShiftLabel(shift)} ${isoDate}`,
     });
     setStore(nextStore);
   };
@@ -617,10 +622,10 @@ export default function EmployerPage(): ReactElement {
                 {store.employees.map((employee) => (
                   <button
                     key={employee.username}
-                    className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaff === employee.name ? "active" : ""}`}
+                    className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaffUsername === employee.username ? "active" : ""}`}
                     type="button"
                     disabled={!planningMode}
-                    onClick={() => setSelectedStaff(employee.name)}
+                    onClick={() => setSelectedStaffUsername(employee.username)}
                   >
                     {employee.name}
                   </button>
@@ -742,7 +747,7 @@ export default function EmployerPage(): ReactElement {
                                 className="btn tiny"
                                 type="button"
                                 aria-label={`Add selected staff to ${formatShiftLabel(shift)} ${day.label}`}
-                                disabled={!selectedStaff}
+                                disabled={!selectedStaffUsername}
                                 onClick={() =>
                                   assignStaff(shift, day.label, day.isoDate)
                                 }
