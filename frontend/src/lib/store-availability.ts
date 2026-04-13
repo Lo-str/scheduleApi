@@ -6,6 +6,51 @@ import {
   type Store,
 } from "./store-core";
 
+const legacyShiftKeyMap = {
+  Morning: "MORNING",
+  Afternoon: "AFTERNOON",
+  Evening: "NIGHT",
+} as const;
+
+function normalizeAvailabilityMatrix(
+  availability:
+    | AvailabilityByShift
+    | Record<string, AvailabilityByShift[string]>,
+): AvailabilityByShift {
+  const normalized = createDefaultAvailability();
+
+  for (const [shiftKey, fallbackKey] of Object.entries(legacyShiftKeyMap)) {
+    const current = (
+      availability as Record<string, AvailabilityByShift[string]>
+    )[shiftKey];
+    const source =
+      current ??
+      (availability as Record<string, AvailabilityByShift[string]>)[
+        fallbackKey
+      ];
+    if (source) {
+      normalized[fallbackKey as keyof AvailabilityByShift] = {
+        ...normalized[fallbackKey as keyof AvailabilityByShift],
+        ...source,
+      };
+    }
+  }
+
+  for (const shiftKey of ["MORNING", "AFTERNOON", "NIGHT"] as const) {
+    const source = (
+      availability as Record<string, AvailabilityByShift[string]>
+    )[shiftKey];
+    if (source) {
+      normalized[shiftKey] = {
+        ...normalized[shiftKey],
+        ...source,
+      };
+    }
+  }
+
+  return normalized;
+}
+
 // Availability read/write helpers used by both dashboards.
 // Get one user's availability, creating defaults when missing.
 export function getAvailabilityForUser(
@@ -16,7 +61,12 @@ export function getAvailabilityForUser(
     store.availabilityByUser[username] = createDefaultAvailability();
     saveStore(store);
   }
-  return clone(store.availabilityByUser[username]);
+  const normalized = normalizeAvailabilityMatrix(
+    store.availabilityByUser[username],
+  );
+  store.availabilityByUser[username] = clone(normalized);
+  saveStore(store);
+  return clone(normalized);
 }
 
 // Persist one user's availability.

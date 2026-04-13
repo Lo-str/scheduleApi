@@ -195,14 +195,10 @@ export default function EmployeePage(): ReactElement {
   ): string[] => {
     const entry = scheduleEntries.find(
       (item) =>
-        item.shift.name === shiftName && item.date.slice(0, 10) === isoDate,
+        item.shift.shift === shiftName && item.date.slice(0, 10) === isoDate,
     );
 
-    return (
-      entry?.employees.map(
-        (employee) => `${employee.firstName} ${employee.lastName}`,
-      ) ?? []
-    );
+    return entry?.employees.map((employee) => employee.name) ?? [];
   };
 
   if (!myUser) {
@@ -495,7 +491,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "profile" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "profile"}
               onClick={() => setSection("profile")}
             >
               My Profile
@@ -503,7 +498,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "availability" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "availability"}
               onClick={() => setSection("availability")}
             >
               Availability
@@ -511,7 +505,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "schedule"}
               onClick={() => setSection("schedule")}
             >
               My Schedule
@@ -988,6 +981,8 @@ export default function EmployeePage(): ReactElement {
                           ) : isScheduleEditable ? (
                             <div className="schedule-cell-actions schedule-cell-actions-inline">
                               <select
+                                aria-label="Select colleague"
+                                title="Select colleague"
                                 value={giveawayTargetByKey[key] || ""}
                                 onChange={(event) =>
                                   setGiveawayTargetByKey((prev) => ({
@@ -1030,7 +1025,7 @@ export default function EmployeePage(): ReactElement {
               <div className="schedule-grid-wrapper">
                 {/* Desktop grid mirrors mobile behavior but keeps all days visible at once. */}
                 <div
-                  className={`schedule-grid ${compactMode ? "compact-mode" : ""}`}
+                  className={`schedule-grid schedule-grid-seven-days ${compactMode ? "compact-mode" : ""}`}
                 >
                   <div className="grid-cell header">Shift</div>
                   {weekDays.map((day) => (
@@ -1153,6 +1148,8 @@ export default function EmployeePage(): ReactElement {
                             ) : isScheduleEditable ? (
                               <div className="schedule-cell-actions schedule-cell-actions-inline">
                                 <select
+                                  aria-label="Select colleague"
+                                  title="Select colleague"
                                   value={giveawayTargetByKey[key] || ""}
                                   onChange={(event) =>
                                     setGiveawayTargetByKey((prev) => ({

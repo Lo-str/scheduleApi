@@ -410,7 +410,7 @@ export default function EmployerPage(): ReactElement {
       status,
       "admin",
     );
-    if (!result.ok) {
+    if (!result.ok || !result.request) {
       window.alert(result.reason);
       return;
     }
@@ -465,7 +465,6 @@ export default function EmployerPage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "employees" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "employees"}
               onClick={() => setSection("employees")}
             >
               List of Employees
@@ -473,7 +472,6 @@ export default function EmployerPage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "schedule"}
               onClick={() => setSection("schedule")}
             >
               Work Schedule
@@ -691,12 +689,7 @@ export default function EmployerPage(): ReactElement {
 
               <div className="schedule-grid-wrapper">
                 {/* Desktop planning grid: one row per shift, one column per day. */}
-                <div
-                  className="schedule-grid"
-                  style={{
-                    gridTemplateColumns: `180px repeat(${DAYS.length}, 220px)`,
-                  }}
-                >
+                <div className="schedule-grid schedule-grid-seven-days">
                   <div className="grid-cell header">Shift</div>
                   {weekDays.map((day) => (
                     <div className="grid-cell header" key={day.isoDate}>
@@ -929,7 +922,7 @@ export default function EmployerPage(): ReactElement {
                             <button
                               className="btn tiny"
                               type="button"
-                              disabled={!selectedStaff}
+                              disabled={!selectedStaffUsername}
                               onClick={() =>
                                 assignStaff(shift, day.label, day.isoDate)
                               }
