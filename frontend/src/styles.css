@@ -501,16 +501,18 @@ summary:focus-visible {
 
 .employee-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
 }
 
 .employee-card {
     position: relative;
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 0.65rem;
+    padding: 0.9rem;
     background: #fffdf8;
+    display: grid;
+    justify-items: center;
 }
 
 .role-badge {
@@ -532,30 +534,37 @@ summary:focus-visible {
 
 .employee-card h3 {
     margin: 0;
-    font-size: 0.95rem;
+    margin-top: 0.15rem;
+    font-size: 1.02rem;
+    text-align: center;
 }
 
 .employee-card p {
-    margin: 0.25rem 0 0.45rem;
+    margin: 0.2rem 0 0.65rem;
     color: var(--muted);
-    font-size: 0.8rem;
+    font-size: 0.84rem;
+    text-align: center;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .avatar {
-    width: 38px;
-    height: 38px;
+    width: 112px;
+    height: 112px;
     border-radius: 50%;
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.65rem;
     background: linear-gradient(140deg, #444, #222);
+    border: 3px solid #ead19f;
 }
 
 .employee-avatar {
-    width: 48px;
-    height: 48px;
+    width: 112px;
+    height: 112px;
     border-radius: 50%;
-    margin-bottom: 0.45rem;
+    margin-bottom: 0.65rem;
     object-fit: cover;
-    border: 1px solid #c9d8ea;
+    border: 4px solid #ead19f;
+    box-shadow: 0 8px 16px rgba(113, 83, 28, 0.18);
 }
 
 .employee-avatar.register-preview {
