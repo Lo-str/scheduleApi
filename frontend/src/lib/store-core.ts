@@ -118,7 +118,7 @@ const defaultStore: Store = {
       username: "admin",
       password: "1234",
       role: "employer",
-      name: "Manager",
+      name: "Pack Leader",
       email: "",
       phone: "",
     },

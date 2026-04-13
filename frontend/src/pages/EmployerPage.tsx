@@ -443,7 +443,7 @@ export default function EmployerPage(): ReactElement {
               {headerInitial}
             </div>
           )}
-          <h1>Employer</h1>
+          <h1>Manager Baa-ry</h1>
           <p className="topbar-subtitle">Schedule Administration</p>
         </div>
         <div className="topbar-right">
