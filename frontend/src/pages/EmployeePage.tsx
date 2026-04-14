@@ -3,6 +3,7 @@ import {
   type FormEvent,
   Fragment,
   type ReactElement,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -14,6 +15,14 @@ import {
   TOAST_DURATION_MS,
   getRoleColorClass,
 } from "../lib/constants";
+import {
+  assignEmployee,
+  getEmployees,
+  getSchedule,
+  removeEmployee,
+  type EmployeeRecord,
+  type ScheduleEntry,
+} from "../lib/api";
 import {
   type AvailabilityByShift,
   type DayName,
@@ -48,6 +57,36 @@ type ProfileFormState = {
 
 const AVAILABILITY_STATES = ["available", "maybe", "unavailable"] as const;
 
+type WeekDayCell = {
+  label: DayName;
+  isoDate: string;
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const formatDateToIso = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMondayIso = (baseDate: Date): string => {
+  const date = new Date(baseDate);
+  const day = date.getDay();
+  const offsetToMonday = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + offsetToMonday);
+  return formatDateToIso(date);
+};
+
+const buildWeekDays = (weekStartIso: string): WeekDayCell[] => {
+  const start = new Date(`${weekStartIso}T00:00:00`);
+  return DAYS.map((label, index) => {
+    const date = new Date(start.getTime() + index * MS_PER_DAY);
+    return { label, isoDate: formatDateToIso(date) };
+  });
+};
+
 // Render employee dashboard for profile, availability, and shifts.
 export default function EmployeePage(): ReactElement {
   const navigate = useNavigate();
@@ -73,6 +112,12 @@ export default function EmployeePage(): ReactElement {
   const [showLoginCode, setShowLoginCode] = useState(false);
   const [selectedProfileImageDataUrl, setSelectedProfileImageDataUrl] =
     useState("");
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
+  const [backendEmployees, setBackendEmployees] = useState<EmployeeRecord[]>(
+    [],
+  );
+  const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
+  const weekDays = buildWeekDays(weekStartIso);
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const myUser = store.users.find(
@@ -94,6 +139,23 @@ export default function EmployeePage(): ReactElement {
     );
   const isScheduleEditable = !compactMode;
 
+  useEffect(() => {
+    const loadBackendData = async (): Promise<void> => {
+      try {
+        const [employeesResponse, scheduleResponse] = await Promise.all([
+          getEmployees(),
+          getSchedule(),
+        ]);
+        setBackendEmployees(employeesResponse.data);
+        setScheduleEntries(scheduleResponse.data);
+      } catch (error) {
+        console.error("Failed to load backend schedule data:", error);
+      }
+    };
+
+    loadBackendData();
+  }, []);
+
   if (!sessionUser) return <Navigate to="/login" replace />;
 
   // Show a short confirmation toast.
@@ -110,6 +172,34 @@ export default function EmployeePage(): ReactElement {
 
   // Reload store state from localStorage.
   const refresh = (): void => setStore(getStore());
+
+  const loadSchedule = async (): Promise<void> => {
+    try {
+      const response = await getSchedule();
+      setScheduleEntries(response.data);
+    } catch (error) {
+      console.error("Failed to load schedule:", error);
+    }
+  };
+
+  const getEmployeeIdByName = (name: string): number | null => {
+    const match = backendEmployees.find(
+      (employee) => `${employee.firstName} ${employee.lastName}` === name,
+    );
+    return match?.id ?? null;
+  };
+
+  const getBackendAssignmentsForShiftDate = (
+    shiftName: ShiftName,
+    isoDate: string,
+  ): string[] => {
+    const entry = scheduleEntries.find(
+      (item) =>
+        item.shift.shift === shiftName && item.date.slice(0, 10) === isoDate,
+    );
+
+    return entry?.employees.map((employee) => employee.name) ?? [];
+  };
 
   if (!myUser) {
     return (
@@ -258,50 +348,82 @@ export default function EmployeePage(): ReactElement {
   };
 
   // Join an open shift as the logged-in employee.
-  const addSelfToShift = (shift: ShiftName, day: DayName): void => {
-    const nextStore = getStore();
-    const validation = canAssignEmployeeToShift(
-      nextStore,
-      shift,
-      day,
-      myUser.name,
-    );
-    if (!validation.ok) {
-      window.alert(validation.reason);
+  const addSelfToShift = (
+    shift: ShiftName,
+    day: DayName,
+    isoDate: string,
+  ): void => {
+    const employeeId = getEmployeeIdByName(myUser.name);
+    if (!employeeId) {
+      window.alert("Employee not found in backend data");
       return;
     }
 
-    nextStore.jobSchedule[shift][day] = [
-      ...toAssignmentArray(nextStore.jobSchedule[shift][day]),
-      myUser.name,
-    ];
-    appendScheduleAudit(nextStore, {
-      actor: sessionUser.username,
-      role: "employee",
-      action: "self-add-assignment",
-      details: `${myUser.name} added to ${formatShiftLabel(shift)} ${day}`,
-    });
-    refresh();
+    assignEmployee({
+      shift,
+      date: isoDate,
+      employeeId,
+    })
+      .then(() => {
+        appendScheduleAudit(getStore(), {
+          actor: sessionUser.username,
+          role: "employee",
+          action: "self-add-assignment",
+          details: `${myUser.name} added to ${formatShiftLabel(shift)} ${isoDate}`,
+        });
+        loadSchedule();
+      })
+      .catch((error) => {
+        console.error("Failed to add self to shift:", error);
+        window.alert(
+          "Failed to add self to shift: " +
+            (error.response?.data?.message || error.message),
+        );
+      });
   };
 
   // Remove the logged-in employee from a shift.
-  const removeSelfFromShift = (shift: ShiftName, day: DayName): void => {
-    const nextStore = getStore();
-    nextStore.jobSchedule[shift][day] = toAssignmentArray(
-      nextStore.jobSchedule[shift][day],
-    ).filter((name) => name !== myUser.name);
-    appendScheduleAudit(nextStore, {
-      actor: sessionUser.username,
-      role: "employee",
-      action: "self-remove-assignment",
-      details: `${myUser.name} removed from ${formatShiftLabel(shift)} ${day}`,
-    });
-    refresh();
+  const removeSelfFromShift = (
+    shift: ShiftName,
+    day: DayName,
+    isoDate: string,
+  ): void => {
+    const employeeId = getEmployeeIdByName(myUser.name);
+    if (!employeeId) {
+      window.alert("Employee not found in backend data");
+      return;
+    }
+
+    removeEmployee({
+      shift,
+      date: isoDate,
+      employeeId,
+    })
+      .then(() => {
+        appendScheduleAudit(getStore(), {
+          actor: sessionUser.username,
+          role: "employee",
+          action: "self-remove-assignment",
+          details: `${myUser.name} removed from ${formatShiftLabel(shift)} ${isoDate}`,
+        });
+        loadSchedule();
+      })
+      .catch((error) => {
+        console.error("Failed to remove self from shift:", error);
+        window.alert(
+          "Failed to remove self from shift: " +
+            (error.response?.data?.message || error.message),
+        );
+      });
   };
 
   // Request handover of a scheduled shift to a colleague.
-  const requestGiveaway = (shift: ShiftName, day: DayName): void => {
-    const key = `${shift}-${day}`;
+  const requestGiveaway = (
+    shift: ShiftName,
+    day: DayName,
+    isoDate: string,
+  ): void => {
+    const key = `${shift}-${isoDate}`;
     const toName = giveawayTargetByKey[key] || "";
     const nextStore = getStore();
 
@@ -321,7 +443,7 @@ export default function EmployeePage(): ReactElement {
       actor: sessionUser.username,
       role: "employee",
       action: "request-handover",
-      details: `${myUser.name} requested handover to ${toName} for ${formatShiftLabel(shift)} ${day}`,
+      details: `${myUser.name} requested handover to ${toName} for ${formatShiftLabel(shift)} ${isoDate}`,
     });
 
     refresh();
@@ -369,7 +491,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "profile" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "profile"}
               onClick={() => setSection("profile")}
             >
               My Profile
@@ -377,7 +498,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "availability" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "availability"}
               onClick={() => setSection("availability")}
             >
               Availability
@@ -385,7 +505,6 @@ export default function EmployeePage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "schedule"}
               onClick={() => setSection("schedule")}
             >
               My Schedule
@@ -754,22 +873,27 @@ export default function EmployeePage(): ReactElement {
                     key={`emp-mobile-group-${shift}`}
                   >
                     <h3>{formatShiftLabel(shift)}</h3>
-                    {DAYS.map((day) => {
-                      const allAssignments = toAssignmentArray(
-                        store.jobSchedule[shift][day],
+                    {weekDays.map((day) => {
+                      const allAssignments = getBackendAssignmentsForShiftDate(
+                        shift,
+                        day.isoDate,
                       );
                       const filtered = getFilteredAssignmentsForCell(
                         allAssignments,
-                        day,
+                        day.label,
                       );
                       const mine = allAssignments.includes(myUser.name);
-                      const openSlots = getOpenSlotsForShift(store, shift, day);
+                      const openSlots = getOpenSlotsForShift(
+                        store,
+                        shift,
+                        day.label,
+                      );
                       const requiredSlots = getRequiredSlotsForShift(
                         store,
                         shift,
-                        day,
+                        day.label,
                       );
-                      const key = `${shift}-${day}`;
+                      const key = `${shift}-${day.isoDate}`;
                       const hiddenByMineFilter = onlyMyShifts && !mine;
                       const slotBlocks = buildSlotBlocks(
                         filtered,
@@ -781,10 +905,10 @@ export default function EmployeePage(): ReactElement {
                       return (
                         <article
                           className="schedule-mobile-card"
-                          key={`emp-mobile-${shift}-${day}`}
+                          key={`emp-mobile-${shift}-${day.isoDate}`}
                         >
                           <div className="schedule-mobile-card-head">
-                            <strong>{day}</strong>
+                            <strong>{day.label}</strong>
                             <span
                               className={`open-slot-badge ${openSlots > 0 ? "open" : "closed"}`}
                             >
@@ -825,9 +949,13 @@ export default function EmployeePage(): ReactElement {
                                       <button
                                         className="slot-block-remove"
                                         type="button"
-                                        aria-label={`Remove yourself from ${formatShiftLabel(shift)} ${day}`}
+                                        aria-label={`Remove yourself from ${formatShiftLabel(shift)} ${day.label}`}
                                         onClick={() =>
-                                          removeSelfFromShift(shift, day)
+                                          removeSelfFromShift(
+                                            shift,
+                                            day.label,
+                                            day.isoDate,
+                                          )
                                         }
                                       >
                                         x
@@ -843,7 +971,9 @@ export default function EmployeePage(): ReactElement {
                             <button
                               className="btn tiny"
                               type="button"
-                              onClick={() => addSelfToShift(shift, day)}
+                              onClick={() =>
+                                addSelfToShift(shift, day.label, day.isoDate)
+                              }
                               disabled={openSlots === 0}
                             >
                               Join shift
@@ -851,6 +981,8 @@ export default function EmployeePage(): ReactElement {
                           ) : isScheduleEditable ? (
                             <div className="schedule-cell-actions schedule-cell-actions-inline">
                               <select
+                                aria-label="Select colleague"
+                                title="Select colleague"
                                 value={giveawayTargetByKey[key] || ""}
                                 onChange={(event) =>
                                   setGiveawayTargetByKey((prev) => ({
@@ -875,7 +1007,9 @@ export default function EmployeePage(): ReactElement {
                                 className="btn tiny"
                                 type="button"
                                 disabled={!giveawayTargetByKey[key]}
-                                onClick={() => requestGiveaway(shift, day)}
+                                onClick={() =>
+                                  requestGiveaway(shift, day.label, day.isoDate)
+                                }
                               >
                                 Give away
                               </button>
@@ -891,15 +1025,15 @@ export default function EmployeePage(): ReactElement {
               <div className="schedule-grid-wrapper">
                 {/* Desktop grid mirrors mobile behavior but keeps all days visible at once. */}
                 <div
-                  className={`schedule-grid ${compactMode ? "compact-mode" : ""}`}
-                  style={{
-                    gridTemplateColumns: `180px repeat(${DAYS.length}, 220px)`,
-                  }}
+                  className={`schedule-grid schedule-grid-seven-days ${compactMode ? "compact-mode" : ""}`}
                 >
                   <div className="grid-cell header">Shift</div>
-                  {DAYS.map((day) => (
-                    <div className="grid-cell header" key={`s-h-${day}`}>
-                      {day}
+                  {weekDays.map((day) => (
+                    <div
+                      className="grid-cell header"
+                      key={`s-h-${day.isoDate}`}
+                    >
+                      {day.label}
                     </div>
                   ))}
 
@@ -908,26 +1042,25 @@ export default function EmployeePage(): ReactElement {
                       <div className="grid-cell shift-label" key={`s-${shift}`}>
                         {formatShiftLabel(shift)}
                       </div>
-                      {DAYS.map((day) => {
-                        const allAssignments = toAssignmentArray(
-                          store.jobSchedule[shift][day],
-                        );
+                      {weekDays.map((day) => {
+                        const allAssignments =
+                          getBackendAssignmentsForShiftDate(shift, day.isoDate);
                         const filtered = getFilteredAssignmentsForCell(
                           allAssignments,
-                          day,
+                          day.label,
                         );
                         const mine = allAssignments.includes(myUser.name);
                         const openSlots = getOpenSlotsForShift(
                           store,
                           shift,
-                          day,
+                          day.label,
                         );
                         const requiredSlots = getRequiredSlotsForShift(
                           store,
                           shift,
-                          day,
+                          day.label,
                         );
-                        const key = `${shift}-${day}`;
+                        const key = `${shift}-${day.isoDate}`;
                         const hiddenByMineFilter = onlyMyShifts && !mine;
                         const slotBlocks = buildSlotBlocks(
                           filtered,
@@ -983,9 +1116,13 @@ export default function EmployeePage(): ReactElement {
                                         <button
                                           className="slot-block-remove"
                                           type="button"
-                                          aria-label={`Remove yourself from ${formatShiftLabel(shift)} ${day}`}
+                                          aria-label={`Remove yourself from ${formatShiftLabel(shift)} ${day.label}`}
                                           onClick={() =>
-                                            removeSelfFromShift(shift, day)
+                                            removeSelfFromShift(
+                                              shift,
+                                              day.label,
+                                              day.isoDate,
+                                            )
                                           }
                                         >
                                           x
@@ -1001,7 +1138,9 @@ export default function EmployeePage(): ReactElement {
                               <button
                                 className="btn tiny"
                                 type="button"
-                                onClick={() => addSelfToShift(shift, day)}
+                                onClick={() =>
+                                  addSelfToShift(shift, day.label, day.isoDate)
+                                }
                                 disabled={openSlots === 0}
                               >
                                 Join shift
@@ -1009,6 +1148,8 @@ export default function EmployeePage(): ReactElement {
                             ) : isScheduleEditable ? (
                               <div className="schedule-cell-actions schedule-cell-actions-inline">
                                 <select
+                                  aria-label="Select colleague"
+                                  title="Select colleague"
                                   value={giveawayTargetByKey[key] || ""}
                                   onChange={(event) =>
                                     setGiveawayTargetByKey((prev) => ({
@@ -1035,7 +1176,13 @@ export default function EmployeePage(): ReactElement {
                                   className="btn tiny"
                                   type="button"
                                   disabled={!giveawayTargetByKey[key]}
-                                  onClick={() => requestGiveaway(shift, day)}
+                                  onClick={() =>
+                                    requestGiveaway(
+                                      shift,
+                                      day.label,
+                                      day.isoDate,
+                                    )
+                                  }
                                 >
                                   Give away
                                 </button>
