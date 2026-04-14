@@ -1,49 +1,47 @@
-# Logging with Winston in Node.js
+# Logging with Winston — scheduleApi
 
 ---
 
 ## 1. What Is Logging?
 
-**Logging** means recording what happens inside your application as it runs. You are already familiar with `console.log` — that is a basic form of logging. A dedicated logging library like Winston gives you much more control:
+**Logging** means recording what happens inside your application as it runs. You are already using `console.log` in the code — that is a basic form of logging. A dedicated logging library like Winston gives you much more control:
 
 - Save logs to files instead of just printing to the terminal
 - Separate logs by severity (info, warnings, errors)
 - Format log messages consistently with timestamps and levels
 - Keep a permanent record you can review after a problem occurs
 
-> 💡
 > `console.log` disappears the moment your terminal closes. A proper logger writes to files on disk, so you can go back and read what happened even after the server has restarted.
 
 ---
 
 ## 2. Installing Winston
 
+Make sure you are in the root of the project:
+
 ```bash
 npm install winston
 ```
 
-After installation, `winston` will appear in your `package.json` under `dependencies`.
-
 ---
 
-## 3. Creating a Logger File
+## 3. Creating the Logger File
 
-Create a dedicated file for your logger configuration:
+Create a dedicated file for the logger configuration:
 
-```bash
-touch logger.js
+```
+src/logger.ts
 ```
 
-Keeping the logger in its own file means you can import it anywhere in your application without repeating the configuration.
+Keeping the logger in its own file means you can import it anywhere in the backend without repeating the configuration.
 
 ---
 
 ## 4. Setting Up the Logger
 
-Here is the complete `logger.js` file:
+Here is the complete `src/logger.ts` file:
 
-```js
-// logger.js
+```ts
 import { createLogger, format, transports } from "winston";
 
 const logger = createLogger({
@@ -66,15 +64,13 @@ const logger = createLogger({
 export default logger;
 ```
 
-Let's go through each part in detail.
-
 ---
 
 ## 5. The Three Core Concepts
 
 ### createLogger
 
-`createLogger` is a factory function — it creates and returns a new logger instance configured with your settings. You call it once, configure it, and then use the resulting `logger` object throughout your application.
+`createLogger` is a factory function — it creates and returns a new logger instance configured with your settings. You call it once, configure it, and then use the resulting `logger` object throughout the application.
 
 ### format
 
@@ -83,11 +79,11 @@ The `format` object controls how log messages look. Two format helpers are used 
 - `format.timestamp()` — automatically adds the current date and time to every log entry
 - `format.printf()` — lets you define a custom template for how each log line is rendered
 
-The `format.combine()` function merges multiple formats together, applying them in sequence.
+`format.combine()` merges multiple formats together, applying them in sequence.
 
-The custom print function receives an object with three properties and returns a formatted string:
+The custom print function receives an object and returns a formatted string:
 
-```js
+```ts
 format.printf(({ timestamp, level, message }) => {
   return `${timestamp} [${level.toUpperCase()}] ${message}`;
 });
@@ -96,17 +92,15 @@ format.printf(({ timestamp, level, message }) => {
 This produces log lines that look like:
 
 ```
-2024-03-15T10:23:45.123Z [INFO] Server started on port 3000
-2024-03-15T10:23:52.456Z [ERROR] Database connection failed
+2026-04-14T09:12:00.000Z [INFO] Server listens on port 3000
+2026-04-14T09:12:45.000Z [ERROR] Database connection failed
 ```
 
 ### transports
 
-Transports decide **where** log messages are sent. Winston supports multiple transports simultaneously — a single log message can be written to a file and printed to the console at the same time.
+Transports decide **where** log messages are sent. Winston supports multiple transports simultaneously — a single log message can be written to a file and printed to the terminal at the same time.
 
-The three transports configured here:
-
-```js
+```ts
 // Only saves ERROR level messages to this file
 new transports.File({ filename: "logs/error.log", level: "error" });
 
@@ -117,8 +111,7 @@ new transports.File({ filename: "logs/combined.log" });
 new transports.Console();
 ```
 
-> 💡
-> Separating errors into their own file (`error.log`) makes it easy to check for problems quickly — you don't have to search through all the informational messages to find what went wrong.
+> Separating errors into their own file (`error.log`) makes it easy to check for problems quickly — you do not have to search through all the informational messages to find what went wrong.
 
 ---
 
@@ -126,144 +119,179 @@ new transports.Console();
 
 Winston has a built-in hierarchy of log levels, from least to most severe:
 
-| Level     | When to use                                                   |
-| --------- | ------------------------------------------------------------- |
-| `silly`   | Extremely verbose, rarely used                                |
-| `debug`   | Detailed information for debugging during development         |
-| `verbose` | More detailed than info                                       |
-| `info`    | Normal application events — things that happened successfully |
-| `warn`    | Something unexpected happened but the app is still running    |
-| `error`   | A serious problem occurred                                    |
+| Level   | When to use                                                   |
+| ------- | ------------------------------------------------------------- |
+| `debug` | Detailed information for debugging during development         |
+| `info`  | Normal application events — things that happened successfully |
+| `warn`  | Something unexpected happened but the app is still running    |
+| `error` | A serious problem occurred                                    |
 
-When you set `level: "info"` on the logger, Winston will save messages at the `info` level and everything **more severe** (`warn`, `error`). Messages less severe than `info` (like `debug` or `silly`) are ignored.
+When you set `level: "info"` on the logger, Winston will log messages at `info` and everything more severe (`warn`, `error`). Messages less severe than `info` (like `debug`) are ignored.
 
-> ⚠️
-> The level you set is a **threshold**, not a filter for a single level. Setting `level: "info"` means: save `info`, `warn`, and `error`. Setting `level: "error"` means: save only `error`.
+> The level you set is a **threshold**, not a filter for a single level. Setting `level: "info"` means: log `info`, `warn`, and `error`.
 
 ---
 
-## 7. Using the Logger in Your Application
+## 7. Using the Logger in index.ts
 
-Import the logger wherever you need it and replace `console.log` / `console.error` calls with the appropriate logger method:
+Import the logger and replace the `console.log` in `src/index.ts`:
 
-```js
-// index.js
+```ts
 import logger from "./logger.js";
 
-// Instead of: console.log("Server started")
-logger.info("Server started on port 3000");
-
-// Instead of: console.error("DB connection failed", error.message)
-logger.error(`MongoDB connection error: ${error.message}`);
+app.listen(PORT, () => {
+  logger.info(`Server listens on port ${PORT}`);
+});
 ```
 
 ---
 
 ## 8. Adding Logging to Routes
 
-Adding log calls inside your route handlers gives you a clear record of every action that happens in your API:
+Here is how logging fits into each of our routes, following the same pattern as the rest of the codebase.
 
-```js
-// GET all items
-router.get("/items", async (req, res) => {
-  try {
-    const items = await Item.find();
-    logger.info("Fetched all items");
-    res.json(items);
-  } catch (error) {
-    logger.error(`Error fetching items: ${error.message}`);
-    res.status(500).json({ error: "Internal server error" });
+### Login — POST /auth/login
+
+```ts
+import logger from "../logger.js";
+
+export async function login(req: Request, res: Response) {
+  if (!inputValidation(loginSchema, req.body, res)) return;
+
+  const { email, username, password } = req.body;
+  const user = findUser(email, password, username);
+
+  if (!user) {
+    logger.warn(`Failed login attempt for email: ${email}`);
+    sendError(res, 401, "Invalid credentials");
+    return;
   }
-});
 
-// POST new item
-router.post("/items", async (req, res) => {
-  try {
-    const newItem = new Item(req.body);
-    await newItem.save();
-    logger.info(`Created new item: ${newItem.name}`);
-    res.status(201).json(newItem);
-  } catch (error) {
-    logger.error(`Error creating new item: ${error.message}`);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// PUT update item
-router.put("/items/:id", async (req, res) => {
-  try {
-    const updated = await Item.findByIdAndUpdate(req.params.id, req.body);
-    if (!updated) {
-      logger.warn(`Item not found for update: ${req.params.id}`);
-      return res.status(404).json({ error: "Item not found" });
-    }
-    logger.info(`Updated item: ${req.params.id}`);
-    res.json(updated);
-  } catch (error) {
-    logger.error(`Error updating item: ${error.message}`);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// DELETE item
-router.delete("/items/:id", async (req, res) => {
-  try {
-    const deleted = await Item.findByIdAndDelete(req.params.id);
-    if (!deleted) {
-      logger.warn(`Item not found for deletion: ${req.params.id}`);
-      return res.status(404).json({ error: "Item not found" });
-    }
-    logger.info(`Deleted item: ${req.params.id}`);
-    res.json({ message: "Item deleted" });
-  } catch (error) {
-    logger.error(`Error deleting item: ${error.message}`);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-```
-
-### The Pattern for Every Route
-
-Every route follows the same logging pattern:
-
-- **Success path** → `logger.info()` describing what happened
-- **Not found** → `logger.warn()` — something unexpected but not a crash
-- **Catch block** → `logger.error()` with the error message
-
-> 🚨
-> Use `logger.warn()` — not `logger.warning()`. The correct method name in Winston is `warn`. Using `warning` will cause a runtime error because that method does not exist.
-
----
-
-## 9. What the Log Files Look Like
-
-After making some API requests, Winston creates a `logs/` folder containing your log files. A `combined.log` entry looks like this:
-
-```json
-{
-  "level": "info",
-  "message": "Created new item: orange",
-  "timestamp": "2024-03-15T10:23:45.123Z"
+  logger.info(`User logged in: ${user.name} (${user.role})`);
+  res.json({ role: user.role, name: user.name });
 }
 ```
 
-The `error.log` file contains only entries where the level is `error` — making it a focused file you can quickly scan when something goes wrong.
+---
+
+### Employees — GET and POST /employees
+
+```ts
+// GET /employees
+router.get("/", async (req, res) => {
+  try {
+    const employees = await prisma.employee.findMany({
+      include: { user: true },
+    });
+    logger.info(`Fetched ${employees.length} employees`);
+    // ... rest of handler
+  } catch (err) {
+    logger.error(`Error fetching employees: ${err}`);
+    sendError(res, 500, err);
+  }
+});
+
+// POST /employees
+router.post("/", async (req, res) => {
+  try {
+    // ... create employee
+    logger.info(`Created new employee: ${parsed.firstName} ${parsed.lastName}`);
+    res.status(201).json({ success: true, data: safeEmployee });
+  } catch (err) {
+    logger.error(`Error creating employee: ${err}`);
+    sendError(res, 500, err);
+  }
+});
+```
+
+---
+
+### Schedule — GET, PUT /schedule/assign, PUT /schedule/remove
+
+```ts
+// GET /schedule
+export const getSchedule = async (req: Request, res: Response) => {
+  try {
+    const entries = await prisma.scheduleEntry.findMany({
+      include: { employees: true, shift: true },
+    });
+    logger.info(`Fetched schedule with ${entries.length} entries`);
+    res.json({ success: true, data: entries });
+  } catch (err) {
+    logger.error(`Error fetching schedule: ${err}`);
+    sendError(res, 500, err);
+  }
+};
+
+// PUT /schedule/assign
+export const assignEmployee = async (req: Request, res: Response) => {
+  try {
+    // ... assign logic
+    logger.info(`Assigned employee ${employeeId} to ${shift} on ${date}`);
+    res.json({
+      success: true,
+      message: "Employee assigned successfully",
+      data: updated,
+    });
+  } catch (err) {
+    logger.error(`Error assigning employee: ${err}`);
+    sendError(res, 500, err);
+  }
+};
+
+// PUT /schedule/remove
+export const removeEmployee = async (req: Request, res: Response) => {
+  try {
+    // ... remove logic
+    logger.info(`Removed employee ${employeeId} from ${shift} on ${date}`);
+    res.json({
+      success: true,
+      message: "Employee removed successfully",
+      data: updated,
+    });
+  } catch (err) {
+    logger.error(`Error removing employee: ${err}`);
+    sendError(res, 500, err);
+  }
+};
+```
+
+---
+
+### The Pattern for Every Route
+
+Every route in our project follows the same logging pattern:
+
+- **Success** → `logger.info()` describing what happened
+- **Not found / bad input** → `logger.warn()` — something unexpected but not a crash
+- **Catch block** → `logger.error()` with the error
+
+---
+
+## 9. Adding Logs Folder to .gitignore
+
+The `logs/` folder should not be committed to Git. Add it to `.gitignore`:
+
+```
+logs/
+```
+
+Each developer and the production server will have their own log files locally.
 
 ---
 
 ## 10. Summary
 
-| Concept              | Purpose                                             |
-| -------------------- | --------------------------------------------------- |
-| `createLogger`       | Factory that creates a configured logger instance   |
-| `format.timestamp()` | Adds current date and time to every log entry       |
-| `format.printf()`    | Defines a custom string template for log output     |
-| `format.combine()`   | Merges multiple format helpers together             |
-| `transports.File`    | Writes logs to a file on disk                       |
-| `transports.Console` | Prints logs to the terminal                         |
-| `logger.info()`      | Logs a normal application event                     |
-| `logger.warn()`      | Logs something unexpected that didn't crash the app |
-| `logger.error()`     | Logs a serious problem                              |
+| Concept              | Purpose                                              |
+| -------------------- | ---------------------------------------------------- |
+| `createLogger`       | Factory that creates a configured logger instance    |
+| `format.timestamp()` | Adds current date and time to every log entry        |
+| `format.printf()`    | Defines a custom string template for log output      |
+| `format.combine()`   | Merges multiple format helpers together              |
+| `transports.File`    | Writes logs to a file on disk                        |
+| `transports.Console` | Prints logs to the terminal                          |
+| `logger.info()`      | Logs a normal application event                      |
+| `logger.warn()`      | Logs something unexpected that did not crash the app |
+| `logger.error()`     | Logs a serious problem                               |
 
-> ⚠️
-> Replace all `console.log` and `console.error` calls with the appropriate Winston logger method in production applications. Winston gives you persistent, structured, level-filtered logs that `console` simply cannot provide.
+Replace all `console.log` and `console.error` calls with the appropriate Winston logger method. Winston gives you persistent, structured, level-filtered logs that `console` cannot provide.

@@ -8,6 +8,7 @@ import employeesRouter from "./routes/employee.js"
 import availabilityRouter from "./routes/availability.js"
 import scheduleRouter from "./routes/schedule.js"
 import cors from "cors"
+import logger from "./logger.js"
 
 
   //****************************************//
@@ -41,5 +42,5 @@ app.use((req, res) => {
 })
 
 app.listen(PORT, () => {
-    console.log(`Server listens on port ${PORT}`)
+  logger.info(`Server listens on port ${PORT}`)
 })

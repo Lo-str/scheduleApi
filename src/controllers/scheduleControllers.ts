@@ -2,6 +2,7 @@ import { Request, Response } from "express"
 import { prisma } from "../db.js"
 import { z } from "zod"
 import { sendError, inputValidation } from "../helpers/response.js"
+import logger from "../logger.js"
 
 const SHIFTS = ["MORNING", "AFTERNOON", "NIGHT"] as const
 
@@ -36,8 +37,10 @@ export const getSchedule = async (req: Request, res: Response) => {
       include: { employees: true, shift: true },
       orderBy: [{ date: "asc" }, { shiftId: "asc" }],
     })
+    logger.info(`Fetched schedule with ${entries.length} entries`)
     res.json({ success: true, data: entries })
   } catch (err) {
+    logger.error(`Error fetching schedule: ${err}`)
     sendError(res, 500, err)
   }
 }
@@ -45,34 +48,38 @@ export const getSchedule = async (req: Request, res: Response) => {
 // PUT /schedule/assign
 export const assignEmployee = async (req: Request, res: Response) => {
   if (!inputValidation(assignSchema, req.body, res)) return
-
   try {
     const { shift, date, employeeId } = assignSchema.parse(req.body)
 
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } })
     if (!employee) {
+      logger.warn(`Employee not found: ${employeeId}`)
       sendError(res, 404, "Employee not found")
       return
     }
 
     const shiftRecord = await prisma.shift.findUnique({ where: { name: shift } })
     if (!shiftRecord) {
+      logger.warn(`Shift not found: ${shift}`)
       sendError(res, 404, "Shift not found")
       return
     }
 
     const slot = await getSlot(date, shiftRecord.id)
     if (!slot) {
+      logger.warn(`Schedule slot not found for ${shift} on ${date}`)
       sendError(res, 404, "Schedule slot not found")
       return
     }
 
     if (slot.employees.some(e => e.id === employee.id)) {
+      logger.warn(`Employee ${employeeId} already assigned to ${shift} on ${date}`)
       sendError(res, 409, "Employee already assigned to this slot")
       return
     }
 
     if (slot.employees.length >= 3) {
+      logger.warn(`Slot full for ${shift} on ${date}`)
       sendError(res, 409, "This slot already has the maximum number of employees")
       return
     }
@@ -83,8 +90,10 @@ export const assignEmployee = async (req: Request, res: Response) => {
       include: { employees: true, shift: true },
     })
 
+    logger.info(`Assigned employee ${employeeId} to ${shift} on ${date}`)
     res.json({ success: true, message: "Employee assigned successfully", data: updated })
   } catch (err) {
+    logger.error(`Error assigning employee: ${err}`)
     sendError(res, 500, err)
   }
 }
@@ -92,29 +101,32 @@ export const assignEmployee = async (req: Request, res: Response) => {
 // PUT /schedule/remove
 export const removeEmployee = async (req: Request, res: Response) => {
   if (!inputValidation(removeSchema, req.body, res)) return
-
   try {
     const { shift, date, employeeId } = removeSchema.parse(req.body)
 
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } })
     if (!employee) {
+      logger.warn(`Employee not found: ${employeeId}`)
       sendError(res, 404, "Employee not found")
       return
     }
 
     const shiftRecord = await prisma.shift.findUnique({ where: { name: shift } })
     if (!shiftRecord) {
+      logger.warn(`Shift not found: ${shift}`)
       sendError(res, 404, "Shift not found")
       return
     }
 
     const slot = await getSlot(date, shiftRecord.id)
     if (!slot) {
+      logger.warn(`Schedule slot not found for ${shift} on ${date}`)
       sendError(res, 404, "Schedule slot not found")
       return
     }
 
     if (!slot.employees.some(e => e.id === employee.id)) {
+      logger.warn(`Employee ${employeeId} not assigned to ${shift} on ${date}`)
       sendError(res, 409, "Employee is not assigned to this slot")
       return
     }
@@ -125,8 +137,10 @@ export const removeEmployee = async (req: Request, res: Response) => {
       include: { employees: true, shift: true },
     })
 
+    logger.info(`Removed employee ${employeeId} from ${shift} on ${date}`)
     res.json({ success: true, message: "Employee removed successfully", data: updated })
   } catch (err) {
+    logger.error(`Error removing employee: ${err}`)
     sendError(res, 500, err)
   }
 }
