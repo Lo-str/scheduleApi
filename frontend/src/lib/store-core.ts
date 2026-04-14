@@ -88,10 +88,7 @@ const baseRequirements: ShiftRequirements = {
     DayName,
     number
   >,
-  NIGHT: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
-    DayName,
-    number
-  >,
+  NIGHT: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<DayName, number>,
 };
 
 // Create a fresh default availability matrix.
