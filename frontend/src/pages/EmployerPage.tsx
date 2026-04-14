@@ -10,12 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { getProfileImage, setProfileImage } from "../assets/profileImages";
-import {
-  getSchedule,
-  assignEmployee,
-  removeEmployee,
-  type ScheduleEntry,
-} from "../lib/api";
+import { type ScheduleEntry } from "../api/employee";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
@@ -44,6 +39,7 @@ import {
   addEmployee,
   getCurrentUser,
 } from "../lib/store";
+import { getSchedule, assignEmployee, removeEmployee } from "../api/schedule";
 
 type EmployerSection = "employees" | "schedule";
 

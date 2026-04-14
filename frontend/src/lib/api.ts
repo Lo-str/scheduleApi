@@ -10,7 +10,6 @@ import {
   type User,
 } from "./store";
 
-
 // Keep UI layers decoupled from storage details through this adapter.
 export const appApi = {
   // Read currently logged-in session data.
