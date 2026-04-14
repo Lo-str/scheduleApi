@@ -9,7 +9,7 @@ import availabilityRouter from "./routes/availability.js"
 import scheduleRouter from "./routes/schedule.js"
 import cors from "cors"
 import logger from "./logger.js"
-
+import { errorHandler } from "./middleware/errorHandler.js"
 
   //****************************************//
  //               VARIABLES                //
@@ -40,6 +40,8 @@ app.use((req, res) => {
   console.log("unmatched route:", req.method, req.url)
   res.status(404).json({ error: "Not found" })
 })
+
+app.use(errorHandler)
 
 app.listen(PORT, () => {
   logger.info(`Server listens on port ${PORT}`)
