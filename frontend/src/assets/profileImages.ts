@@ -4,11 +4,13 @@ import yukiImage from "./profiles/yuki.png";
 import ariaImage from "./profiles/aria.png";
 import arjunImage from "./profiles/arjun.png";
 import sagaImage from "./profiles/saga.png";
+import adminImage from "./profiles/admin.jpg"
 
 const PROFILE_IMAGE_STORAGE_KEY = "scheduleAppProfileImages";
 
 // Single mapping from username to avatar image asset.
 export const profileImageByUsername: Record<string, string> = {
+  admin: adminImage,
   amara: amaraImage,
   mateo: mateoImage,
   yuki: yukiImage,
