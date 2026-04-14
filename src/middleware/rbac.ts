@@ -1,41 +1,30 @@
-export const requireEmployer = (req: any, res: any, next: any) => {
-  // Make sure user exists (auth ran before)
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      error: "Unauthorized",
-    });
-  }
+import { Request, Response, NextFunction } from "express"
+import { sendError } from "../helpers/response.js"
 
-  //  Check role
+export const requireEmployer = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    sendError(res, 401, "Unauthorized")
+    return
+  }
   if (req.user.role !== "EMPLOYER") {
-    return res.status(403).json({
-      success: false,
-      error: "Forbidden: Employer access only",
-    });
+    sendError(res, 403, "Forbidden: Employer access only")
+    return
   }
-
-  next();
-};
-
-export const requireEmployee = (req: any, res: any, next: any) => {
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      error: "Unauthorized",
-    })
-  }
-
-  if (req.user.role !== "EMPLOYEE") {
-    return res.status(403).json({
-      success: false,
-      error: "Forbidden: Employee access only",
-    })
-  }
-
   next()
 }
 
-//RBAC means: control access based on user roles.
-// only employers can access employee management endpoints
-// employees can only manage their own availability.
+export const requireEmployee = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    sendError(res, 401, "Unauthorized")
+    return
+  }
+  if (req.user.role !== "EMPLOYEE") {
+    sendError(res, 403, "Forbidden: Employee access only")
+    return
+  }
+  next()
+}
+
+// RBAC means: control access based on user roles.
+// Only employers can access employee management endpoints.
+// Employees can only manage their own availability.
