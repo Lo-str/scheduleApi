@@ -4,11 +4,10 @@ import bcrypt from "bcrypt"
 import { prisma } from "../db.js"
 import { sendError, inputValidation } from "../helpers/response.js"
 import { requireEmployer } from "../middleware/rbac.js"
+import logger from "../logger.js"
 
 const router = express.Router()
-
 const RoleEnum = z.enum(["EMPLOYER", "EMPLOYEE"])
-
 const CreateEmployeeSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -20,7 +19,7 @@ const CreateEmployeeSchema = z.object({
 })
 
 // GET /employees
-router.get("/", /*requireEmployer, (I commented out for testing and since we are not using JWT tokens.)*/ async (req, res) => {
+router.get("/", async (req, res) => {
   try {
     const employees = await prisma.employee.findMany({
       include: { user: true },
@@ -29,29 +28,28 @@ router.get("/", /*requireEmployer, (I commented out for testing and since we are
       const { passwordHash, ...userSafe } = emp.user
       return { ...emp, user: userSafe }
     })
+    logger.info(`Fetched ${employees.length} employees`)
     res.json({ success: true, data: safeEmployees })
   } catch (err) {
+    logger.error(`Error fetching employees: ${err}`)
     sendError(res, 500, err)
   }
 })
 
 // POST /employees
-router.post("/", /*requireEmployer,*/ async (req, res) => {
+router.post("/", async (req, res) => {
   if (!inputValidation(CreateEmployeeSchema, req.body, res)) return
-
   try {
     const parsed = CreateEmployeeSchema.parse(req.body)
-
     const existingUser = await prisma.user.findUnique({
       where: { email: parsed.email },
     })
     if (existingUser) {
+      logger.warn(`Email already in use: ${parsed.email}`)
       sendError(res, 400, "Email already in use")
       return
     }
-
     const passwordHash = await bcrypt.hash(parsed.password, 10)
-
     const employee = await prisma.employee.create({
       data: {
         firstName: parsed.firstName,
@@ -68,10 +66,11 @@ router.post("/", /*requireEmployer,*/ async (req, res) => {
       },
       include: { user: true },
     })
-
     const { passwordHash: _, ...userSafe } = employee.user
+    logger.info(`Created new employee: ${parsed.firstName} ${parsed.lastName}`)
     res.status(201).json({ success: true, data: { ...employee, user: userSafe } })
   } catch (err) {
+    logger.error(`Error creating employee: ${err}`)
     sendError(res, 500, err)
   }
 })
