@@ -3,12 +3,19 @@ import {
   type FormEvent,
   Fragment,
   type ReactElement,
+  useEffect,
   useRef,
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { getProfileImage, setProfileImage } from "../assets/profileImages";
+import {
+  getSchedule,
+  assignEmployee,
+  removeEmployee,
+  type ScheduleEntry,
+} from "../lib/api";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
@@ -50,13 +57,47 @@ type EmployeeFormState = {
 
 type RequestReviewStatus = "approved" | "rejected";
 
+// Convert days and shifts to a format suitable for schedule grid rendering.
+type WeekDayCell = {
+  label: DayName;
+  isoDate: string;
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const formatDateToIso = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return year + "-" + month + "-" + day;
+};
+
+const getMondayIso = (baseDate: Date): string => {
+  const date = new Date(baseDate);
+  const day = date.getDay();
+  const offsetToMonday = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + offsetToMonday);
+  return formatDateToIso(date);
+};
+
+const buildWeekDays = (weekStartIso: string): WeekDayCell[] => {
+  const start = new Date(weekStartIso + "T00:00:00");
+  return DAYS.map((label, index) => {
+    const date = new Date(start.getTime() + index * MS_PER_DAY);
+    return { label, isoDate: formatDateToIso(date) };
+  });
+};
+
 // Render employer dashboard with staff and schedule controls.
 export default function EmployerPage(): ReactElement {
   const navigate = useNavigate();
   const sessionUser = getCurrentUser();
   const [store, setStore] = useState<Store>(() => getStore());
   const [section, setSection] = useState<EmployerSection>("employees");
-  const [selectedStaff, setSelectedStaff] = useState("");
+  const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
+  const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
+  const weekDays = buildWeekDays(weekStartIso);
   const [dayFilter, setDayFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);
@@ -83,6 +124,25 @@ export default function EmployerPage(): ReactElement {
     const trimmed = name.trim();
     if (!trimmed) return "";
     return trimmed.split(/\s+/)[0];
+  };
+
+  const getEmployeeIdByName = (name: string): number | null => {
+    for (const entry of scheduleEntries) {
+      for (const emp of entry.employees) {
+        if (emp.name === name) return emp.id;
+      }
+    }
+    return null;
+  };
+
+  const loadSchedule = async (): Promise<void> => {
+    try {
+      const res = await getSchedule();
+      setScheduleEntries(res.data);
+    } catch (err) {
+      console.error("Failed to load schedule:", err);
+      window.alert("Failed to load schedule from backend");
+    }
   };
 
   const getFilteredAssignmentsForCell = (
@@ -134,6 +194,24 @@ export default function EmployerPage(): ReactElement {
     navigate("/login", { replace: true });
   };
 
+  // Load schedule from backend when entering schedule section.
+  useEffect(() => {
+    if (section === "schedule") {
+      loadSchedule();
+    }
+  }, [section]);
+
+  // Retrieve employee names assigned to a shift/date from backend entries.
+  const getBackendAssignmentsForShiftDate = (
+    shiftName: ShiftName,
+    isoDate: string,
+  ): string[] => {
+    const entry = scheduleEntries.find(
+      (e) => e.shift.shift === shiftName && e.date.slice(0, 10) === isoDate,
+    );
+    return entry?.employees.map((emp) => emp.name) ?? [];
+  };
+
   // Increase or decrease required staff count for a shift cell.
   const updateRequirement = (
     shift: ShiftName,
@@ -159,52 +237,74 @@ export default function EmployerPage(): ReactElement {
   };
 
   // Assign currently selected staff member to a shift cell.
-  const assignStaff = (shift: ShiftName, day: DayName): void => {
+  const assignStaff = (
+    shift: ShiftName,
+    dayLabel: DayName,
+    isoDate: string,
+  ): void => {
     if (!planningMode) return;
-    if (!selectedStaff) return;
-    const nextStore = getStore();
-    const validation = canAssignEmployeeToShift(
-      nextStore,
-      shift,
-      day,
-      selectedStaff,
+    if (!selectedStaffUsername) return;
+
+    const selectedEmployee = store.employees.find(
+      (e) => e.username === selectedStaffUsername,
     );
-    if (!validation.ok) {
-      window.alert(validation.reason);
+    if (!selectedEmployee) return;
+
+    const employeeId = getEmployeeIdByName(selectedEmployee.name);
+    if (!employeeId) {
+      window.alert("Employee not found in schedule data");
       return;
     }
 
-    nextStore.jobSchedule[shift][day] = [
-      ...toAssignmentArray(nextStore.jobSchedule[shift][day]),
-      selectedStaff,
-    ];
-    appendScheduleAudit(nextStore, {
-      actor: "admin",
-      role: "employer",
-      action: "add-assignment",
-      details: `${selectedStaff} -> ${formatShiftLabel(shift)} ${day}`,
-    });
-    setStore(nextStore);
+    assignEmployee({
+      shift,
+      date: isoDate,
+      employeeId,
+    })
+      .then(() => {
+        showToast("Employee assigned");
+        loadSchedule();
+      })
+      .catch((err) => {
+        console.error("Failed to assign employee:", err);
+        window.alert(
+          "Failed to assign employee: " +
+            (err.response?.data?.message || err.message),
+        );
+      });
   };
 
   // Remove one employee assignment from a shift cell.
   const removeAssignment = (
     shift: ShiftName,
-    day: DayName,
+    dayLabel: DayName,
+    isoDate: string,
     name: string,
   ): void => {
     if (!planningMode) return;
-    const nextStore = getStore();
-    nextStore.jobSchedule[shift][day] = toAssignmentArray(
-      nextStore.jobSchedule[shift][day],
-    ).filter((entry) => entry !== name);
-    appendScheduleAudit(nextStore, {
-      actor: "admin",
-      role: "employer",
-      action: "remove-assignment",
-      details: `${name} removed from ${formatShiftLabel(shift)} ${day}`,
-    });
-    setStore(nextStore);
+
+    const employeeId = getEmployeeIdByName(name);
+    if (!employeeId) {
+      window.alert("Employee not found in schedule data");
+      return;
+    }
+
+    removeEmployee({
+      shift,
+      date: isoDate,
+      employeeId,
+    })
+      .then(() => {
+        showToast("Employee removed");
+        loadSchedule();
+      })
+      .catch((err) => {
+        console.error("Failed to remove employee:", err);
+        window.alert(
+          "Failed to remove employee: " +
+            (err.response?.data?.message || err.message),
+        );
+      });
   };
 
   // Create a new employee user from the register form.
@@ -310,7 +410,7 @@ export default function EmployerPage(): ReactElement {
       status,
       "admin",
     );
-    if (!result.ok) {
+    if (!result.ok || !result.request) {
       window.alert(result.reason);
       return;
     }
@@ -343,7 +443,7 @@ export default function EmployerPage(): ReactElement {
               {headerInitial}
             </div>
           )}
-          <h1>Employer</h1>
+          <h1>Manager Baa-ry</h1>
           <p className="topbar-subtitle">Schedule Administration</p>
         </div>
         <div className="topbar-right">
@@ -365,7 +465,6 @@ export default function EmployerPage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "employees" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "employees"}
               onClick={() => setSection("employees")}
             >
               List of Employees
@@ -373,7 +472,6 @@ export default function EmployerPage(): ReactElement {
             <button
               className={`sidebar-btn ${section === "schedule" ? "active" : ""}`}
               type="button"
-              aria-pressed={section === "schedule"}
               onClick={() => setSection("schedule")}
             >
               Work Schedule
@@ -579,10 +677,10 @@ export default function EmployerPage(): ReactElement {
                 {store.employees.map((employee) => (
                   <button
                     key={employee.username}
-                    className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaff === employee.name ? "active" : ""}`}
+                    className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaffUsername === employee.username ? "active" : ""}`}
                     type="button"
                     disabled={!planningMode}
-                    onClick={() => setSelectedStaff(employee.name)}
+                    onClick={() => setSelectedStaffUsername(employee.username)}
                   >
                     {employee.name}
                   </button>
@@ -591,16 +689,11 @@ export default function EmployerPage(): ReactElement {
 
               <div className="schedule-grid-wrapper">
                 {/* Desktop planning grid: one row per shift, one column per day. */}
-                <div
-                  className="schedule-grid"
-                  style={{
-                    gridTemplateColumns: `180px repeat(${DAYS.length}, 220px)`,
-                  }}
-                >
+                <div className="schedule-grid schedule-grid-seven-days">
                   <div className="grid-cell header">Shift</div>
-                  {DAYS.map((day) => (
-                    <div className="grid-cell header" key={day}>
-                      {day}
+                  {weekDays.map((day) => (
+                    <div className="grid-cell header" key={day.isoDate}>
+                      {day.label}
                     </div>
                   ))}
 
@@ -612,30 +705,31 @@ export default function EmployerPage(): ReactElement {
                       >
                         {formatShiftLabel(shift)}
                       </div>
-                      {DAYS.map((day) => {
-                        const assignments = toAssignmentArray(
-                          store.jobSchedule[shift][day],
+                      {weekDays.map((day) => {
+                        const assignments = getBackendAssignmentsForShiftDate(
+                          shift,
+                          day.isoDate,
                         );
                         const filtered = getFilteredAssignmentsForCell(
                           assignments,
-                          day,
+                          day.label,
                         );
                         const openSlots = getOpenSlotsForShift(
                           store,
                           shift,
-                          day,
+                          day.label,
                         );
                         const required = getRequiredSlotsForShift(
                           store,
                           shift,
-                          day,
+                          day.label,
                         );
                         const slotBlocks = buildSlotBlocks(filtered, required);
 
                         return (
                           <div
                             className="grid-cell booked multi-assignment-cell"
-                            key={`${shift}-${day}`}
+                            key={`${shift}-${day.isoDate}`}
                           >
                             <div className="assignment-list">
                               <div
@@ -645,7 +739,7 @@ export default function EmployerPage(): ReactElement {
                                 {slotBlocks.map((slot, index) => (
                                   <span
                                     className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
-                                    key={`employer-grid-slot-${shift}-${day}-${index}`}
+                                    key={`employer-grid-slot-${shift}-${day.isoDate}-${index}`}
                                     title={slot.rawName || slot.label}
                                   >
                                     {slot.label}
@@ -654,11 +748,12 @@ export default function EmployerPage(): ReactElement {
                                         <button
                                           className="slot-block-remove"
                                           type="button"
-                                          aria-label={`Remove ${slot.rawName} from ${formatShiftLabel(shift)} ${day}`}
+                                          aria-label={`Remove ${slot.rawName} from ${formatShiftLabel(shift)} ${day.label}`}
                                           onClick={() =>
                                             removeAssignment(
                                               shift,
-                                              day,
+                                              day.label,
+                                              day.isoDate,
                                               slot.rawName || "",
                                             )
                                           }
@@ -679,7 +774,7 @@ export default function EmployerPage(): ReactElement {
                                     type="button"
                                     disabled={required <= assignments.length}
                                     onClick={() =>
-                                      updateRequirement(shift, day, -1)
+                                      updateRequirement(shift, day.label, -1)
                                     }
                                   >
                                     -
@@ -689,7 +784,7 @@ export default function EmployerPage(): ReactElement {
                                     type="button"
                                     disabled={required >= MAX_STAFF_PER_SHIFT}
                                     onClick={() =>
-                                      updateRequirement(shift, day, 1)
+                                      updateRequirement(shift, day.label, 1)
                                     }
                                   >
                                     +
@@ -702,9 +797,11 @@ export default function EmployerPage(): ReactElement {
                               <button
                                 className="btn tiny"
                                 type="button"
-                                aria-label={`Add selected staff to ${formatShiftLabel(shift)} ${day}`}
-                                disabled={!selectedStaff}
-                                onClick={() => assignStaff(shift, day)}
+                                aria-label={`Add selected staff to ${formatShiftLabel(shift)} ${day.label}`}
+                                disabled={!selectedStaffUsername}
+                                onClick={() =>
+                                  assignStaff(shift, day.label, day.isoDate)
+                                }
                               >
                                 Add selected
                               </button>
@@ -728,12 +825,13 @@ export default function EmployerPage(): ReactElement {
                     key={`mobile-group-${shift}`}
                   >
                     <h3>{formatShiftLabel(shift)}</h3>
-                    {DAYS.map((day) => {
-                      const assignments = toAssignmentArray(
-                        store.jobSchedule[shift][day],
+                    {weekDays.map((day) => {
+                      const assignments = getBackendAssignmentsForShiftDate(
+                        shift,
+                        day.isoDate,
                       );
                       const filtered = assignments.filter((name) => {
-                        if (dayFilter !== "all" && dayFilter !== day)
+                        if (dayFilter !== "all" && dayFilter !== day.label)
                           return false;
                         if (roleFilter === "all") return true;
                         const employee = store.employees.find(
@@ -741,21 +839,25 @@ export default function EmployerPage(): ReactElement {
                         );
                         return employee?.role === roleFilter;
                       });
-                      const openSlots = getOpenSlotsForShift(store, shift, day);
+                      const openSlots = getOpenSlotsForShift(
+                        store,
+                        shift,
+                        day.label,
+                      );
                       const required = getRequiredSlotsForShift(
                         store,
                         shift,
-                        day,
+                        day.label,
                       );
                       const slotBlocks = buildSlotBlocks(filtered, required);
 
                       return (
                         <article
                           className="schedule-mobile-card"
-                          key={`mobile-${shift}-${day}`}
+                          key={`mobile-${shift}-${day.isoDate}`}
                         >
                           <div className="schedule-mobile-card-head">
-                            <strong>{day}</strong>
+                            <strong>{day.label}</strong>
                           </div>
 
                           <div className="assignment-list">
@@ -765,7 +867,7 @@ export default function EmployerPage(): ReactElement {
                               {slotBlocks.map((slot, index) => (
                                 <span
                                   className={`slot-block ${slot.type} ${slot.role ? getRoleColorClass(slot.role) : ""}`}
-                                  key={`employer-mobile-slot-${shift}-${day}-${index}`}
+                                  key={`employer-mobile-slot-${shift}-${day.isoDate}-${index}`}
                                   title={slot.rawName || slot.label}
                                 >
                                   {slot.label}
@@ -773,11 +875,12 @@ export default function EmployerPage(): ReactElement {
                                     <button
                                       className="slot-block-remove"
                                       type="button"
-                                      aria-label={`Remove ${slot.rawName} from ${formatShiftLabel(shift)} ${day}`}
+                                      aria-label={`Remove ${slot.rawName} from ${formatShiftLabel(shift)} ${day.label}`}
                                       onClick={() =>
                                         removeAssignment(
                                           shift,
-                                          day,
+                                          day.label,
+                                          day.isoDate,
                                           slot.rawName || "",
                                         )
                                       }
@@ -797,7 +900,7 @@ export default function EmployerPage(): ReactElement {
                                 type="button"
                                 disabled={required <= assignments.length}
                                 onClick={() =>
-                                  updateRequirement(shift, day, -1)
+                                  updateRequirement(shift, day.label, -1)
                                 }
                               >
                                 -
@@ -806,7 +909,9 @@ export default function EmployerPage(): ReactElement {
                                 className="open-slot-btn"
                                 type="button"
                                 disabled={required >= MAX_STAFF_PER_SHIFT}
-                                onClick={() => updateRequirement(shift, day, 1)}
+                                onClick={() =>
+                                  updateRequirement(shift, day.label, 1)
+                                }
                               >
                                 +
                               </button>
@@ -817,8 +922,10 @@ export default function EmployerPage(): ReactElement {
                             <button
                               className="btn tiny"
                               type="button"
-                              disabled={!selectedStaff}
-                              onClick={() => assignStaff(shift, day)}
+                              disabled={!selectedStaffUsername}
+                              onClick={() =>
+                                assignStaff(shift, day.label, day.isoDate)
+                              }
                             >
                               Add selected
                             </button>

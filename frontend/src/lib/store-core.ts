@@ -1,6 +1,6 @@
 // Shared schedule dimensions used across all modules and UI tables.
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-export const SHIFTS = ["Morning", "Afternoon", "Evening"] as const;
+export const SHIFTS = ["MORNING", "AFTERNOON", "NIGHT"] as const;
 
 export type DayName = (typeof DAYS)[number];
 export type ShiftName = (typeof SHIFTS)[number];
@@ -8,9 +8,9 @@ export type RoleName = "employer" | "employee";
 export type AvailabilityState = "available" | "maybe" | "unavailable";
 
 export const SHIFT_TIMES: Record<ShiftName, string> = {
-  Morning: "7-15",
-  Afternoon: "15-18",
-  Evening: "18-23",
+  MORNING: "7-15",
+  AFTERNOON: "15-18",
+  NIGHT: "18-23",
 };
 
 export const MAX_STAFF_PER_SHIFT = 3;
@@ -80,15 +80,15 @@ export type SessionUser = {
 
 // Baseline staffing requirement used when store data is missing or invalid.
 const baseRequirements: ShiftRequirements = {
-  Morning: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
+  MORNING: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
     DayName,
     number
   >,
-  Afternoon: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
+  AFTERNOON: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
     DayName,
     number
   >,
-  Evening: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
+  NIGHT: Object.fromEntries(DAYS.map((d) => [d, 2])) as Record<
     DayName,
     number
   >,
@@ -97,15 +97,15 @@ const baseRequirements: ShiftRequirements = {
 // Create a fresh default availability matrix.
 export function createDefaultAvailability(): AvailabilityByShift {
   return {
-    Morning: Object.fromEntries(DAYS.map((d) => [d, "available"])) as Record<
+    MORNING: Object.fromEntries(DAYS.map((d) => [d, "available"])) as Record<
       DayName,
       AvailabilityState
     >,
-    Afternoon: Object.fromEntries(DAYS.map((d) => [d, "available"])) as Record<
+    AFTERNOON: Object.fromEntries(DAYS.map((d) => [d, "available"])) as Record<
       DayName,
       AvailabilityState
     >,
-    Evening: Object.fromEntries(DAYS.map((d) => [d, "maybe"])) as Record<
+    NIGHT: Object.fromEntries(DAYS.map((d) => [d, "maybe"])) as Record<
       DayName,
       AvailabilityState
     >,
@@ -118,7 +118,7 @@ const defaultStore: Store = {
       username: "admin",
       password: "1234",
       role: "employer",
-      name: "Manager",
+      name: "Pack Leader",
       email: "",
       phone: "",
     },
@@ -224,7 +224,7 @@ const defaultStore: Store = {
     saga: createDefaultAvailability(),
   },
   jobSchedule: {
-    Morning: {
+    MORNING: {
       Mon: ["Amara Okafor"],
       Tue: ["Mateo Fernández"],
       Wed: ["Yuki Tanaka"],
@@ -233,7 +233,7 @@ const defaultStore: Store = {
       Sat: ["Saga Lindberg"],
       Sun: ["Amara Okafor"],
     },
-    Afternoon: {
+    AFTERNOON: {
       Mon: ["Mateo Fernández"],
       Tue: ["Yuki Tanaka"],
       Wed: ["Aria Novak"],
@@ -242,7 +242,7 @@ const defaultStore: Store = {
       Sat: ["Amara Okafor"],
       Sun: ["Mateo Fernández"],
     },
-    Evening: {
+    NIGHT: {
       Mon: ["Yuki Tanaka"],
       Tue: ["Aria Novak"],
       Wed: ["Arjun Deshmukh"],
