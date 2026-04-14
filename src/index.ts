@@ -7,20 +7,26 @@ import loginRouter from "./routes/login.js"
 import employeesRouter from "./routes/employee.js"
 import availabilityRouter from "./routes/availability.js"
 import scheduleRouter from "./routes/schedule.js"
+import cors from "cors"
+
 
   //****************************************//
  //               VARIABLES                //
 //****************************************//
 console.log("app starting")
-
+const corsOptions = {
+  origin: ["http://localhost:5173"]
+}
 const app = express()
+
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use("/auth", loginRouter)
 app.use("/employees", employeesRouter)
 app.use("/availability", availabilityRouter)
 app.use("/schedule", scheduleRouter)
 
-const PORT = process.env.PORT ?? 3000
+export const PORT = process.env.PORT ?? 3000
 
   //****************************************//
  //                 ROUTES                 //
