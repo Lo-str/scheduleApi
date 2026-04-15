@@ -4,6 +4,7 @@ export interface EmployeeRecord {
   id: number;
   firstName: string;
   lastName: string;
+  loginCode: string;
   phone?: string;
   user: {
     id: number;

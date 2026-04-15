@@ -1,22 +1,10 @@
-import amaraImage from "./profiles/amara.png";
-import mateoImage from "./profiles/mateo.png";
-import yukiImage from "./profiles/yuki.png";
-import ariaImage from "./profiles/aria.png";
-import arjunImage from "./profiles/arjun.png";
-import sagaImage from "./profiles/saga.png";
-import adminImage from "./profiles/admin.jpg"
+import adminImage from "./profiles/admin.jpg";
 
 const PROFILE_IMAGE_STORAGE_KEY = "scheduleAppProfileImages";
 
 // Single mapping from username to avatar image asset.
 export const profileImageByUsername: Record<string, string> = {
   admin: adminImage,
-  amara: amaraImage,
-  mateo: mateoImage,
-  yuki: yukiImage,
-  aria: ariaImage,
-  arjun: arjunImage,
-  saga: sagaImage,
 };
 
 function getStoredProfileImages(): Record<string, string> {
@@ -42,6 +30,16 @@ export function setProfileImage(username: string, imageDataUrl: string): void {
 
 // Resolve profile image path for a given username.
 export function getProfileImage(username: string): string | undefined {
-  const custom = getStoredProfileImages()[username];
-  return custom || profileImageByUsername[username];
+  const normalized = username.toLowerCase();
+  const localPart = normalized.includes("@")
+    ? normalized.split("@")[0]
+    : normalized;
+
+  const stored = getStoredProfileImages();
+  const custom = stored[normalized] || stored[localPart];
+  return (
+    custom ||
+    profileImageByUsername[normalized] ||
+    profileImageByUsername[localPart]
+  );
 }

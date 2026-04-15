@@ -395,7 +395,8 @@ h3 {
     color: #7f6646;
 }
 
-.planning-mode-note {
+.planning-mode-note,
+.team-availability-legend {
     font-size: 0.78rem;
     line-height: 1.35;
     margin-bottom: 0.35rem;
@@ -1086,6 +1087,7 @@ summary:focus-visible {
 }
 
 .table-wrap {
+    margin-top: 20px;
     overflow-x: auto;
 }
 
@@ -1150,10 +1152,6 @@ td:first-child {
 
 .availability-chip.unavailable {
     background: #f5cccc;
-}
-
-.team-availability-legend {
-    margin: 0 0 0.6rem;
 }
 
 .team-availability-header {

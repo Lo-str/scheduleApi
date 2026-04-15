@@ -1,5 +1,0 @@
-import { users } from "../data/users.js"
-
-export function findUser(email: string | undefined, password: string, username?: string) {
-  return users.find(u => (u.email === email || u.username === username) && u.password === password) ?? null
-}

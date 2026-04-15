@@ -1,37 +1,50 @@
 import type { ReactElement } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import { appApi } from "./lib/api";
-import { type RoleName } from "./lib/store";
 import LoginPage from "./pages/LoginPage";
 import EmployerPage from "./pages/EmployerPage";
 import EmployeePage from "./pages/EmployeePage";
 
+type SessionRole = "employer" | "employee";
+type SessionUser = {
+  username: string;
+  role: SessionRole;
+  name: string;
+};
+
+function getSessionUser(): SessionUser | null {
+  const raw = sessionStorage.getItem("sessionUser");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SessionUser;
+  } catch {
+    return null;
+  }
+}
+
 type RequireRoleProps = {
-  role: RoleName;
+  role: SessionRole;
   children: ReactElement;
 };
 
-// Protect route content by checking the logged-in role.
 function RequireRole({ role, children }: RequireRoleProps): ReactElement {
-  const user = appApi.getSessionUser();
+  const user = getSessionUser();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== role)
+  if (user.role !== role) {
     return (
       <Navigate
         to={user.role === "employer" ? "/employer" : "/employee"}
         replace
       />
     );
+  }
   return children;
 }
 
-// Render application routes and default redirects.
 export default function App(): ReactElement {
-  const user = appApi.getSessionUser();
+  const user = getSessionUser();
 
   return (
     <Routes>
-      {/* Root route redirects by session/role so users land on the correct dashboard. */}
       <Route
         path="/"
         element={
@@ -64,7 +77,6 @@ export default function App(): ReactElement {
           </RequireRole>
         }
       />
-      {/* Catch-all route keeps unknown URLs inside the app flow. */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

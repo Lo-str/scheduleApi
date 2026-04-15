@@ -1,12 +1,7 @@
-import api from "./apiBase.js"
+import api from "./apiBase.js";
+import type { EmployeeRecord } from "./employee";
 
 type Shift = "MORNING" | "AFTERNOON" | "NIGHT";
-
-export type EmployeeRecord = {
-  id: number;
-  firstName: string;
-  lastName: string;
-};
 
 type SchedulePayload = {
   shift: Shift;
@@ -16,12 +11,14 @@ type SchedulePayload = {
 
 type ScheduleEmployee = {
   id: number;
-  name: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
 };
 
 type ScheduleShift = {
   id: number;
-  shift: Shift;
+  name: Shift;
 };
 
 export type ScheduleEntry = {
@@ -50,25 +47,25 @@ type ScheduleMutationResponse = {
 
 // Fetch the full schedule from the backend
 export const getSchedule = async (): Promise<ScheduleResponse> => {
-  const res = await api.get("/api/schedule");
+  const res = await api.get("/schedule");
   return res.data;
 };
 
 export const getEmployees = async (): Promise<EmployeesResponse> => {
-  const res = await api.get("/api/employees");
+  const res = await api.get("/employees");
   return res.data;
 };
 
 export const assignEmployee = async (
   payload: SchedulePayload,
 ): Promise<ScheduleMutationResponse> => {
-  const res = await api.put("/api/schedule/assign", payload);
+  const res = await api.put("/schedule/assign", payload);
   return res.data;
 };
 
 export const removeEmployee = async (
   payload: SchedulePayload,
 ): Promise<ScheduleMutationResponse> => {
-  const res = await api.put("/api/schedule/remove", payload);
+  const res = await api.put("/schedule/remove", payload);
   return res.data;
 };
