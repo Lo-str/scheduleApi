@@ -39,6 +39,7 @@ model Employee {
   firstName String
   lastName  String
   loginCode String   @unique
+  role      String   @default("Head Pawtender")
   profileImageKey String?
   phone     String?
 

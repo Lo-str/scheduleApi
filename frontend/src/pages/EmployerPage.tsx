@@ -162,7 +162,7 @@ export default function EmployerPage(): ReactElement {
         username:
           employee.loginCode || employee.user.email.split("@")[0] || "employee",
         name,
-        role: existing?.role || EMPLOYEE_ROLE_OPTIONS[0],
+        role: employee.role || existing?.role || EMPLOYEE_ROLE_OPTIONS[0],
         email: employee.user.email,
         phone: employee.phone || "",
         profileImageKey: employee.profileImageKey || existing?.profileImageKey,
@@ -412,6 +412,7 @@ export default function EmployerPage(): ReactElement {
         email,
         password: loginCode,
         loginCode,
+        role: form.role,
         profileImageKey: form.profileImageKey || undefined,
       });
     } catch (err: any) {

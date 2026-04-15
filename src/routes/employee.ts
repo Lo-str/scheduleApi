@@ -7,7 +7,6 @@ import { requireEmployer } from "../middleware/rbac.js";
 import logger from "../logger.js";
 
 const router = express.Router();
-const RoleEnum = z.enum(["EMPLOYER", "EMPLOYEE"]);
 const CreateEmployeeSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -16,7 +15,7 @@ const CreateEmployeeSchema = z.object({
   phone: z.string().optional(),
   loginCode: z.string().trim().min(1),
   profileImageKey: z.string().trim().min(1).max(80).optional(),
-  role: RoleEnum.optional(),
+  role: z.string().trim().min(1).max(60).optional(),
 });
 
 // GET /employees
@@ -67,13 +66,14 @@ router.post("/", async (req, res) => {
         firstName: parsed.firstName,
         lastName: parsed.lastName,
         loginCode: normalizedLoginCode,
+        role: parsed.role ?? "Head Pawtender",
         profileImageKey: parsed.profileImageKey?.toLowerCase() ?? null,
         phone: parsed.phone ?? null,
         user: {
           create: {
             email: parsed.email,
             passwordHash,
-            role: parsed.role ?? "EMPLOYEE",
+            role: "EMPLOYEE",
           },
         },
       },

@@ -5,6 +5,7 @@ export interface EmployeeRecord {
   firstName: string;
   lastName: string;
   loginCode: string;
+  role: string;
   profileImageKey?: string;
   phone?: string;
   user: {
@@ -34,6 +35,7 @@ export const createEmployee = async (data: {
   password: string;
   phone?: string;
   loginCode: string;
+  role?: string;
   profileImageKey?: string;
 }) => {
   const response = await api.post("/employees", data);
