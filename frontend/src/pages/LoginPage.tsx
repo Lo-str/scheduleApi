@@ -1,6 +1,5 @@
 import { type FormEvent, type ReactElement, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { appApi } from "../lib/api";
 import loginLogo from "../assets/login-logo.png";
 import { handleLogin } from "../api/login.js";
 
@@ -27,7 +26,7 @@ export default function LoginPage(): ReactElement {
     const result = await handleLogin(normalizedUsername, form.password);
 
     if (!result.success) {
-      setError("Incorrect login details.");
+      setError(result.message || "Incorrect login details.");
       return;
     }
 

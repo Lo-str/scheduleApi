@@ -11,8 +11,8 @@ import {
 export function setCurrentUser(
   user: Pick<SessionUser, "username" | "role" | "name">,
 ): void {
-  localStorage.setItem(
-    "scheduleAppSessionReact",
+  sessionStorage.setItem(
+    "sessionUser",
     JSON.stringify({
       username: user.username,
       role: user.role,
@@ -24,12 +24,21 @@ export function setCurrentUser(
 
 // Read current logged-in session.
 export function getCurrentUser(): SessionUser | null {
-  const raw = localStorage.getItem("scheduleAppSessionReact");
+  const raw = sessionStorage.getItem("sessionUser");
   if (!raw) return null;
 
   const parsed = JSON.parse(raw) as Partial<SessionUser>;
+  const hasBasicSession =
+    typeof parsed.username === "string" &&
+    typeof parsed.role === "string" &&
+    typeof parsed.name === "string";
+  if (!hasBasicSession) {
+    clearCurrentUser();
+    return null;
+  }
+
   const isExpired =
-    typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now();
+    typeof parsed.expiresAt === "number" && parsed.expiresAt <= Date.now();
   if (isExpired) {
     clearCurrentUser();
     return null;
@@ -39,13 +48,13 @@ export function getCurrentUser(): SessionUser | null {
     username: String(parsed.username || ""),
     role: parsed.role as RoleName,
     name: String(parsed.name || ""),
-    expiresAt: parsed.expiresAt ?? Date.now(),
+    expiresAt: parsed.expiresAt ?? Date.now() + SESSION_TTL_MS,
   };
 }
 
 // Clear current login session.
 export function clearCurrentUser(): void {
-  localStorage.removeItem("scheduleAppSessionReact");
+  sessionStorage.removeItem("sessionUser");
 }
 
 // Validate login credentials against store users.

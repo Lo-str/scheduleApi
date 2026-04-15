@@ -10,7 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { getProfileImage, setProfileImage } from "../assets/profileImages";
-import { type ScheduleEntry } from "../api/employee";
+import { type ScheduleEntry } from "../api/schedule";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
@@ -36,11 +36,16 @@ import {
   setShiftExchangeRequestStatus,
   toAssignmentArray,
   updateEmployeeRole,
-  addEmployee,
   getCurrentUser,
+  saveStore,
 } from "../lib/store";
-import { getSchedule, assignEmployee, removeEmployee } from "../api/schedule";
-import { createEmployee } from "../api/employee";
+import {
+  getSchedule,
+  assignEmployee,
+  removeEmployee,
+  getEmployees,
+} from "../api/schedule";
+import { createEmployee, type EmployeeRecord } from "../api/employee";
 
 type EmployerSection = "employees" | "schedule";
 
@@ -93,6 +98,9 @@ export default function EmployerPage(): ReactElement {
   const [section, setSection] = useState<EmployerSection>("employees");
   const [selectedStaffUsername, setSelectedStaffUsername] = useState("");
   const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
+  const [backendEmployees, setBackendEmployees] = useState<EmployeeRecord[]>(
+    [],
+  );
   const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
   const weekDays = buildWeekDays(weekStartIso);
   const [dayFilter, setDayFilter] = useState("all");
@@ -124,12 +132,11 @@ export default function EmployerPage(): ReactElement {
   };
 
   const getEmployeeIdByName = (name: string): number | null => {
-    for (const entry of scheduleEntries) {
-      for (const emp of entry.employees) {
-        if (emp.name === name) return emp.id;
-      }
-    }
-    return null;
+    const match = backendEmployees.find(
+      (employee) =>
+        `${employee.firstName} ${employee.lastName}`.trim() === name,
+    );
+    return match?.id ?? null;
   };
 
   const loadSchedule = async (): Promise<void> => {
@@ -140,6 +147,54 @@ export default function EmployerPage(): ReactElement {
       console.error("Failed to load schedule:", err);
       window.alert("Failed to load schedule from backend");
     }
+  };
+
+  const toStoreEmployees = (employees: EmployeeRecord[]) => {
+    const current = getStore();
+    return employees.map((employee) => {
+      const name = `${employee.firstName} ${employee.lastName}`.trim();
+      const existing = current.employees.find(
+        (entry) => entry.email === employee.user.email || entry.name === name,
+      );
+
+      return {
+        username:
+          employee.loginCode || employee.user.email.split("@")[0] || "employee",
+        name,
+        role: existing?.role || "Waiter",
+        email: employee.user.email,
+        phone: employee.phone || "",
+      };
+    });
+  };
+
+  const loadEmployees = async (): Promise<void> => {
+    try {
+      const response = await getEmployees();
+      setBackendEmployees(response.data);
+
+      const nextStore = getStore();
+      nextStore.employees = toStoreEmployees(response.data);
+      saveStore(nextStore);
+      setStore(nextStore);
+    } catch (err) {
+      console.error("Failed to load employees:", err);
+      window.alert("Failed to load employees from backend");
+    }
+  };
+
+  const getApiErrorMessage = (err: any, fallback: string): string => {
+    const apiError = err?.response?.data;
+    if (typeof apiError?.error === "string" && apiError.error.trim()) {
+      return apiError.error;
+    }
+    if (typeof apiError?.message === "string" && apiError.message.trim()) {
+      return apiError.message;
+    }
+    if (typeof err?.message === "string" && err.message.trim()) {
+      return err.message;
+    }
+    return fallback;
   };
 
   const getFilteredAssignmentsForCell = (
@@ -193,6 +248,10 @@ export default function EmployerPage(): ReactElement {
 
   // Load schedule from backend when entering schedule section.
   useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  useEffect(() => {
     if (section === "schedule") {
       loadSchedule();
     }
@@ -203,10 +262,27 @@ export default function EmployerPage(): ReactElement {
     shiftName: ShiftName,
     isoDate: string,
   ): string[] => {
-    const entry = scheduleEntries.find(
-      (e) => e.shift.shift === shiftName && e.date.slice(0, 10) === isoDate,
+    const entry = scheduleEntries.find((e) => {
+      const entryShiftName =
+        (e.shift as unknown as { name?: string; shift?: string }).name ??
+        (e.shift as unknown as { name?: string; shift?: string }).shift;
+      return entryShiftName === shiftName && e.date.slice(0, 10) === isoDate;
+    });
+    return (
+      entry?.employees
+        .map((emp) => {
+          const withName = emp as unknown as {
+            name?: string;
+            firstName?: string;
+            lastName?: string;
+          };
+          const fullName =
+            withName.name ??
+            `${withName.firstName ?? ""} ${withName.lastName ?? ""}`.trim();
+          return fullName;
+        })
+        .filter((name) => Boolean(name)) ?? []
     );
-    return entry?.employees.map((emp) => emp.name) ?? [];
   };
 
   // Increase or decrease required staff count for a shift cell.
@@ -242,12 +318,14 @@ export default function EmployerPage(): ReactElement {
     if (!planningMode) return;
     if (!selectedStaffUsername) return;
 
-    const selectedEmployee = store.employees.find(
-      (e) => e.username === selectedStaffUsername,
+    const selectedEmployee = backendEmployees.find(
+      (e) => e.loginCode === selectedStaffUsername,
     );
     if (!selectedEmployee) return;
 
-    const employeeId = getEmployeeIdByName(selectedEmployee.name);
+    const employeeName =
+      `${selectedEmployee.firstName} ${selectedEmployee.lastName}`.trim();
+    const employeeId = getEmployeeIdByName(employeeName);
     if (!employeeId) {
       window.alert("Employee not found in schedule data");
       return;
@@ -266,7 +344,7 @@ export default function EmployerPage(): ReactElement {
         console.error("Failed to assign employee:", err);
         window.alert(
           "Failed to assign employee: " +
-            (err.response?.data?.message || err.message),
+            getApiErrorMessage(err, "Could not assign employee"),
         );
       });
   };
@@ -299,7 +377,7 @@ export default function EmployerPage(): ReactElement {
         console.error("Failed to remove employee:", err);
         window.alert(
           "Failed to remove employee: " +
-            (err.response?.data?.message || err.message),
+            getApiErrorMessage(err, "Could not remove employee"),
         );
       });
   };
@@ -324,9 +402,7 @@ export default function EmployerPage(): ReactElement {
       setRegisterError("Enter a login code for the employee.");
       return;
     }
-    // Try creating the employee on the backend first. If that fails show the
-    // returned error. On success, also update the local store so the UI stays
-    // in sync with the in-memory data.
+    // Create the employee through the backend and then refresh employee data.
     try {
       await createEmployee({
         firstName: form.firstName.trim(),
@@ -337,22 +413,27 @@ export default function EmployerPage(): ReactElement {
       });
     } catch (err: any) {
       console.error("Failed to create employee (backend):", err);
-      setRegisterError(
-        err?.response?.data || err?.message || "Failed to create employee",
-      );
+      const rawError = err?.response?.data;
+      const errorText =
+        typeof rawError === "string"
+          ? rawError
+          : typeof rawError?.error === "string"
+            ? rawError.error
+            : typeof rawError?.message === "string"
+              ? rawError.message
+              : typeof err?.message === "string"
+                ? err.message
+                : "Failed to create employee";
+      setRegisterError(errorText);
       return;
     }
 
-    const nextStore = getStore();
-    const createdEmployee = addEmployee(nextStore, {
-      name: fullName,
-      role: form.role,
-      loginCode,
-      email,
-    });
+    await loadEmployees();
+
     if (registerImageDataUrl) {
-      setProfileImage(createdEmployee.username, registerImageDataUrl);
+      setProfileImage(loginCode, registerImageDataUrl);
     }
+    const nextStore = getStore();
     appendScheduleAudit(nextStore, {
       actor: "admin",
       role: "employer",
@@ -371,7 +452,6 @@ export default function EmployerPage(): ReactElement {
       registerImageRef.current.value = "";
     }
     setRegisterError("");
-    setStore(nextStore);
     setSection("employees");
     showToast("Employee created");
   };

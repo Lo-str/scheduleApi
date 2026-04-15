@@ -15,7 +15,8 @@ import {
   TOAST_DURATION_MS,
   getRoleColorClass,
 } from "../lib/constants";
-import { type EmployeeRecord, type ScheduleEntry } from "../api/employee";
+import { type EmployeeRecord } from "../api/employee";
+import { type ScheduleEntry } from "../api/schedule";
 import {
   type AvailabilityByShift,
   type DayName,
@@ -119,9 +120,17 @@ export default function EmployeePage(): ReactElement {
   const weekDays = buildWeekDays(weekStartIso);
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const myUser = store.users.find(
+  const myUserFromStore = store.users.find(
     (entry) => entry.username === safeSessionUser.username,
   );
+  const myUser = myUserFromStore ?? {
+    username: safeSessionUser.username,
+    role: safeSessionUser.role,
+    name: safeSessionUser.name || safeSessionUser.username,
+    email: "",
+    phone: "",
+    password: "",
+  };
   const myEmployee = store.employees.find(
     (entry) => entry.username === safeSessionUser.username,
   );
@@ -192,31 +201,29 @@ export default function EmployeePage(): ReactElement {
     shiftName: ShiftName,
     isoDate: string,
   ): string[] => {
-    const entry = scheduleEntries.find(
-      (item) =>
-        item.shift.shift === shiftName && item.date.slice(0, 10) === isoDate,
-    );
+    const entry = scheduleEntries.find((item) => {
+      const entryShiftName =
+        (item.shift as unknown as { name?: string; shift?: string }).name ??
+        (item.shift as unknown as { name?: string; shift?: string }).shift;
+      return entryShiftName === shiftName && item.date.slice(0, 10) === isoDate;
+    });
 
-    return entry?.employees.map((employee) => employee.name) ?? [];
-  };
-
-  if (!myUser) {
     return (
-      <div className="page">
-        <main className="center-main">
-          <section className="panel login-panel">
-            <h2>Session data mismatch</h2>
-            <p className="muted">
-              Your user profile was not found. Please sign in again.
-            </p>
-            <button className="btn" onClick={logout} type="button">
-              Back to login
-            </button>
-          </section>
-        </main>
-      </div>
+      entry?.employees
+        .map((employee) => {
+          const withName = employee as unknown as {
+            name?: string;
+            firstName?: string;
+            lastName?: string;
+          };
+          const fullName =
+            withName.name ??
+            `${withName.firstName ?? ""} ${withName.lastName ?? ""}`.trim();
+          return fullName;
+        })
+        .filter((name) => Boolean(name)) ?? []
     );
-  }
+  };
 
   const headerAvatar = getProfileImage(myUser.username);
   const headerInitial = myUser.name.slice(0, 1).toUpperCase();
@@ -275,12 +282,6 @@ export default function EmployeePage(): ReactElement {
   const saveProfile = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const nextStore = getStore();
-    const updated = updateUserProfile(
-      nextStore,
-      sessionUser.username,
-      profileForm,
-    );
-    if (!updated) return;
 
     if (selectedProfileImageDataUrl) {
       setProfileImage(sessionUser.username, selectedProfileImageDataUrl);
@@ -288,6 +289,16 @@ export default function EmployeePage(): ReactElement {
         profileImageInputRef.current.value = "";
       }
       setSelectedProfileImageDataUrl("");
+    }
+
+    const updated = updateUserProfile(
+      nextStore,
+      sessionUser.username,
+      profileForm,
+    );
+    if (!updated) {
+      showToast("Profile image updated");
+      return;
     }
 
     appendScheduleAudit(nextStore, {
@@ -626,11 +637,6 @@ export default function EmployeePage(): ReactElement {
           {/* Availability section: editable personal matrix + read-only team view. */}
           {section === "availability" && (
             <section className="panel">
-              <h2>Availability</h2>
-              <p className="muted">
-                Top table: your availability (editable). Bottom table: team
-                availability by shift (read-only).
-              </p>
 
               <h3>My Availability</h3>
               <div className="table-wrap">
