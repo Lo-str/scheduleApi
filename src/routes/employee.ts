@@ -112,7 +112,9 @@ router.patch("/:employeeId/role", async (req, res) => {
     });
 
     const { passwordHash, ...userSafe } = updated.user;
-    logger.info(`Updated role for employeeId=${parsedId} to ${parsedBody.role}`);
+    logger.info(
+      `Updated role for employeeId=${parsedId} to ${parsedBody.role}`,
+    );
     res.json({ success: true, data: { ...updated, user: userSafe } });
   } catch (err) {
     logger.error(`Error updating employee role for id=${parsedId}: ${err}`);
