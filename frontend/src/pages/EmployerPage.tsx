@@ -1,18 +1,15 @@
 import {
-  type ChangeEvent,
   type FormEvent,
   Fragment,
   type ReactElement,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import {
   getProfileImage,
-  prepareProfileImage,
-  setProfileImage,
+  PROFILE_IMAGE_OPTIONS,
 } from "../assets/profileImages";
 import { type ScheduleEntry } from "../api/schedule";
 import {
@@ -59,6 +56,7 @@ type EmployeeFormState = {
   email: string;
   role: string;
   loginCode: string;
+  profileImageKey: string;
 };
 
 type RequestReviewStatus = "approved" | "rejected";
@@ -113,14 +111,13 @@ export default function EmployerPage(): ReactElement {
   const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(true);
   const [toast, setToast] = useState("");
   const [registerError, setRegisterError] = useState("");
-  const [registerImageDataUrl, setRegisterImageDataUrl] = useState("");
-  const registerImageRef = useRef<HTMLInputElement | null>(null);
   const [form, setForm] = useState<EmployeeFormState>({
     firstName: "",
     lastName: "",
     email: "",
     role: EMPLOYEE_ROLE_OPTIONS[0],
     loginCode: "",
+    profileImageKey: "",
   });
   const headerName =
     sessionUser?.name || sessionUser?.username || "Employer Account";
@@ -168,6 +165,7 @@ export default function EmployerPage(): ReactElement {
         role: existing?.role || EMPLOYEE_ROLE_OPTIONS[0],
         email: employee.user.email,
         phone: employee.phone || "",
+        profileImageKey: employee.profileImageKey || existing?.profileImageKey,
       };
     });
   };
@@ -408,26 +406,14 @@ export default function EmployerPage(): ReactElement {
     }
     // Create the employee through the backend and then refresh employee data.
     try {
-      const createdEmployeeResponse = await createEmployee({
+      await createEmployee({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email,
         password: loginCode,
         loginCode,
+        profileImageKey: form.profileImageKey || undefined,
       });
-
-      const createdEmployee = createdEmployeeResponse.data;
-
-      if (registerImageDataUrl) {
-        setProfileImage(
-          createdEmployee.loginCode || loginCode,
-          registerImageDataUrl,
-        );
-        setProfileImage(
-          createdEmployee.user.email.split("@")[0] || loginCode,
-          registerImageDataUrl,
-        );
-      }
     } catch (err: any) {
       console.error("Failed to create employee (backend):", err);
       const rawError = err?.response?.data;
@@ -459,36 +445,11 @@ export default function EmployerPage(): ReactElement {
       email: "",
       role: EMPLOYEE_ROLE_OPTIONS[0],
       loginCode: "",
+      profileImageKey: "",
     });
-    setRegisterImageDataUrl("");
-    if (registerImageRef.current) {
-      registerImageRef.current.value = "";
-    }
     setRegisterError("");
     setSection("employees");
     showToast("Employee created");
-  };
-
-  const onRegisterImageChange = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ): Promise<void> => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setRegisterImageDataUrl("");
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      setRegisterError("Profile image must be an image file.");
-      event.target.value = "";
-      return;
-    }
-    try {
-      const imageDataUrl = await prepareProfileImage(file);
-      setRegisterImageDataUrl(imageDataUrl);
-      setRegisterError("");
-    } catch {
-      setRegisterError("Could not read selected image.");
-    }
   };
 
   // Update an employee role from the employee list.
@@ -593,10 +554,16 @@ export default function EmployerPage(): ReactElement {
               <div className="employee-cards">
                 {store.employees.map((employee) => (
                   <article className="employee-card" key={employee.username}>
-                    {getProfileImage(employee.username) ? (
+                    {getProfileImage(
+                      employee.username,
+                      employee.profileImageKey,
+                    ) ? (
                       <img
                         className="employee-avatar"
-                        src={getProfileImage(employee.username)}
+                        src={getProfileImage(
+                          employee.username,
+                          employee.profileImageKey,
+                        )}
                         alt={employee.name}
                       />
                     ) : (
@@ -702,17 +669,30 @@ export default function EmployerPage(): ReactElement {
                     />
 
                     <label htmlFor="register-image">Profile image</label>
-                    <input
+                    <select
                       id="register-image"
-                      ref={registerImageRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={onRegisterImageChange}
-                    />
-                    {registerImageDataUrl && (
+                      value={form.profileImageKey}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          profileImageKey: event.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">No image</option>
+                      {PROFILE_IMAGE_OPTIONS.map((option) => (
+                        <option key={option.key} value={option.key}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {form.profileImageKey && (
                       <img
                         className="employee-avatar register-preview"
-                        src={registerImageDataUrl}
+                        src={getProfileImage(
+                          form.loginCode || form.email || "employee",
+                          form.profileImageKey,
+                        )}
                         alt="New employee preview"
                       />
                     )}

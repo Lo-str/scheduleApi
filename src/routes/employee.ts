@@ -15,6 +15,7 @@ const CreateEmployeeSchema = z.object({
   password: z.string().min(6),
   phone: z.string().optional(),
   loginCode: z.string().trim().min(1),
+  profileImageKey: z.string().trim().min(1).max(80).optional(),
   role: RoleEnum.optional(),
 });
 
@@ -66,6 +67,7 @@ router.post("/", async (req, res) => {
         firstName: parsed.firstName,
         lastName: parsed.lastName,
         loginCode: normalizedLoginCode,
+        profileImageKey: parsed.profileImageKey?.toLowerCase() ?? null,
         phone: parsed.phone ?? null,
         user: {
           create: {

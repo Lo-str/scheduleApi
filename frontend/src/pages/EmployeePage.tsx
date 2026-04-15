@@ -138,6 +138,12 @@ export default function EmployeePage(): ReactElement {
   const myEmployee = store.employees.find(
     (entry) => entry.username === safeSessionUser.username,
   );
+  const backendEmployee = backendEmployees.find(
+    (entry) =>
+      entry.loginCode === safeSessionUser.username ||
+      entry.user.email === safeSessionUser.username,
+  );
+  const profileImageKey = backendEmployee?.profileImageKey;
   const [profileForm, setProfileForm] = useState<ProfileFormState>({
     name: myUser?.name || "",
     email: myUser?.email || "",
@@ -229,7 +235,7 @@ export default function EmployeePage(): ReactElement {
     );
   };
 
-  const headerAvatar = getProfileImage(myUser.username);
+  const headerAvatar = getProfileImage(myUser.username, profileImageKey);
   const headerInitial = myUser.name.slice(0, 1).toUpperCase();
 
   const toDisplayName = (name: string): string =>
@@ -534,13 +540,13 @@ export default function EmployeePage(): ReactElement {
               <h2>My Profile</h2>
               {myUser &&
               (selectedProfileImageDataUrl ||
-                getProfileImage(myUser.username)) ? (
+                getProfileImage(myUser.username, profileImageKey)) ? (
                 <div className="profile-header-card">
                   <img
                     className="profile-avatar"
                     src={
                       selectedProfileImageDataUrl ||
-                      getProfileImage(myUser.username)
+                      getProfileImage(myUser.username, profileImageKey)
                     }
                     alt={myUser.name}
                   />

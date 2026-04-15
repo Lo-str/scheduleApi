@@ -39,6 +39,7 @@ model Employee {
   firstName String
   lastName  String
   loginCode String   @unique
+  profileImageKey String?
   phone     String?
 
   user      User     @relation(fields: [userId], references: [id])

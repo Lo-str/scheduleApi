@@ -8,6 +8,50 @@ export const profileImageByUsername: Record<string, string> = {
   admin: adminImage,
 };
 
+type ProfileImageOption = {
+  key: string;
+  label: string;
+  url: string;
+};
+
+const staticProfileImages = import.meta.glob(
+  "./profiles/*.{png,jpg,jpeg,webp}",
+  {
+    eager: true,
+    import: "default",
+  },
+) as Record<string, string>;
+
+function toTitleCase(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => word.slice(0, 1).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function imageKeyFromPath(path: string): string {
+  const fileName = path.split("/").pop() || "";
+  return fileName.replace(/\.[^.]+$/, "").toLowerCase();
+}
+
+export const PROFILE_IMAGE_OPTIONS: ProfileImageOption[] = Object.entries(
+  staticProfileImages,
+)
+  .map(([path, url]) => {
+    const key = imageKeyFromPath(path);
+    return {
+      key,
+      label: toTitleCase(key),
+      url,
+    };
+  })
+  .sort((a, b) => a.label.localeCompare(b.label));
+
+const profileImageByKey: Record<string, string> = Object.fromEntries(
+  PROFILE_IMAGE_OPTIONS.map((option) => [option.key, option.url]),
+);
+
 function normalizeProfileKey(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -64,6 +108,28 @@ function expandProfileKeys(value: string): string[] {
   }
 
   return [...keys];
+}
+
+function resolveStaticProfileImage(
+  keys: string[],
+  explicitProfileImageKey?: string,
+): string | undefined {
+  const explicit = (explicitProfileImageKey || "").trim().toLowerCase();
+  if (explicit && profileImageByKey[explicit]) {
+    return profileImageByKey[explicit];
+  }
+
+  for (const key of keys) {
+    if (profileImageByKey[key]) {
+      return profileImageByKey[key];
+    }
+    const mapped = profileImageByUsername[key];
+    if (mapped && profileImageByKey[mapped]) {
+      return profileImageByKey[mapped];
+    }
+  }
+
+  return undefined;
 }
 
 function getStoredProfileImages(): Record<string, string> {
@@ -147,8 +213,14 @@ export function setProfileImage(username: string, imageDataUrl: string): void {
 }
 
 // Resolve profile image path for a given username.
-export function getProfileImage(username: string): string | undefined {
+export function getProfileImage(
+  username: string,
+  profileImageKey?: string,
+): string | undefined {
   const keys = expandProfileKeys(username);
+
+  const staticImage = resolveStaticProfileImage(keys, profileImageKey);
+  if (staticImage) return staticImage;
 
   const stored = getStoredProfileImages();
   for (const key of keys) {

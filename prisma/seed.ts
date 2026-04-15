@@ -27,8 +27,8 @@ const seed = async () => {
   });
 
   const shifts = await prisma.shift.findMany();
-  const start = new Date("2026-01-01T00:00:00.000Z");
-  const end = new Date("2026-12-31T00:00:00.000Z");
+  const start = new Date("2026-04-01T00:00:00.000Z");
+  const end = new Date("2026-04-31T00:00:00.000Z");
 
   for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
     for (const shift of shifts) {

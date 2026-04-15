@@ -30,6 +30,7 @@ export type Employee = {
   role: string;
   email: string;
   phone: string;
+  profileImageKey?: string;
 };
 
 export type AvailabilityByShift = Record<
