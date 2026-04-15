@@ -138,7 +138,7 @@ export default function EmployeePage(): ReactElement {
     name: myUser?.name || "",
     email: myUser?.email || "",
     phone: myUser?.phone || "",
-    role: myEmployee?.role || "Waiter",
+    role: myEmployee?.role || EMPLOYEE_ROLE_OPTIONS[0],
     loginCode: myUser?.password || "",
   });
   const [availabilityDraft, setAvailabilityDraft] =

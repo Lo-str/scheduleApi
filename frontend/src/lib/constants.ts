@@ -4,17 +4,19 @@ export const TOAST_DURATION_MS = 2200;
 
 // Allowed role options in employee management forms.
 export const EMPLOYEE_ROLE_OPTIONS = [
-  "Waiter",
-  "Runner",
-  "Head Waiter",
+  "Head Pawtender",
+  "Snack Sprinter",
+  "Taste Tester",
+  "Chief Napper",
 ] as const;
 
 // Schedule role colors are applied in the UI through CSS classes.
 export function getRoleColorClass(role: string): string {
   const normalized = role.trim().toLowerCase();
-  if (normalized === "runner") return "role-color runner";
-  if (normalized === "head waiter") return "role-color head-waiter";
-  if (normalized === "waiter") return "role-color waiter";
+  if (normalized === "head pawtender") return "role-color head-pawtender";
+  if (normalized === "snack sprinter") return "role-color snack-sprinter";
+  if (normalized.startsWith("taste test")) return "role-color taste-tester";
+  if (normalized === "chief napper") return "role-color chief-napper";
   return "role-color default";
 }
 

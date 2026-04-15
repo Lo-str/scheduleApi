@@ -115,7 +115,7 @@ export default function EmployerPage(): ReactElement {
     firstName: "",
     lastName: "",
     email: "",
-    role: "Waiter",
+    role: EMPLOYEE_ROLE_OPTIONS[0],
     loginCode: "",
   });
   const headerName =
@@ -161,7 +161,7 @@ export default function EmployerPage(): ReactElement {
         username:
           employee.loginCode || employee.user.email.split("@")[0] || "employee",
         name,
-        role: existing?.role || "Waiter",
+        role: existing?.role || EMPLOYEE_ROLE_OPTIONS[0],
         email: employee.user.email,
         phone: employee.phone || "",
       };
@@ -444,7 +444,7 @@ export default function EmployerPage(): ReactElement {
       firstName: "",
       lastName: "",
       email: "",
-      role: "Waiter",
+      role: EMPLOYEE_ROLE_OPTIONS[0],
       loginCode: "",
     });
     setRegisterImageDataUrl("");
@@ -602,7 +602,7 @@ export default function EmployerPage(): ReactElement {
                           employee.role as (typeof EMPLOYEE_ROLE_OPTIONS)[number],
                         )
                           ? employee.role
-                          : "Waiter"
+                          : EMPLOYEE_ROLE_OPTIONS[0]
                       }
                       aria-label={`Role for ${employee.name}`}
                       onChange={(event) =>
@@ -730,9 +730,13 @@ export default function EmployerPage(): ReactElement {
                 locked.
               </p>
               <p className="muted planning-color-note">
-                Waiter/Head Waiter - Blue
+                Head Pawtender - Mint
                 <br />
-                Runner - Purple
+                Snack Sprinter - Orange
+                <br />
+                Taste Tester - Rose
+                <br />
+                Chief Napper - Indigo
               </p>
 
               <div className="schedule-tools-row">
