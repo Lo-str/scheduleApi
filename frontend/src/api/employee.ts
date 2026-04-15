@@ -44,3 +44,14 @@ export const createEmployee = async (data: {
     data: EmployeeRecord;
   };
 };
+
+export const updateEmployeeRoleApi = async (
+  employeeId: number,
+  role: string,
+) => {
+  const response = await api.patch(`/employees/${employeeId}/role`, { role });
+  return response.data as {
+    success: boolean;
+    data: EmployeeRecord;
+  };
+};

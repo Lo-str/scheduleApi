@@ -18,6 +18,10 @@ const CreateEmployeeSchema = z.object({
   role: z.string().trim().min(1).max(60).optional(),
 });
 
+const UpdateEmployeeRoleSchema = z.object({
+  role: z.string().trim().min(1).max(60),
+});
+
 // GET /employees
 router.get("/", async (req, res) => {
   try {
@@ -86,6 +90,32 @@ router.post("/", async (req, res) => {
       .json({ success: true, data: { ...employee, user: userSafe } });
   } catch (err) {
     logger.error(`Error creating employee: ${err}`);
+    sendError(res, 500, err);
+  }
+});
+
+// PATCH /employees/:employeeId/role
+router.patch("/:employeeId/role", async (req, res) => {
+  const parsedId = Number(req.params.employeeId);
+  if (!Number.isInteger(parsedId) || parsedId <= 0) {
+    sendError(res, 400, "Invalid employee id");
+    return;
+  }
+  if (!inputValidation(UpdateEmployeeRoleSchema, req.body, res)) return;
+
+  try {
+    const parsedBody = UpdateEmployeeRoleSchema.parse(req.body);
+    const updated = await prisma.employee.update({
+      where: { id: parsedId },
+      data: { role: parsedBody.role },
+      include: { user: true },
+    });
+
+    const { passwordHash, ...userSafe } = updated.user;
+    logger.info(`Updated role for employeeId=${parsedId} to ${parsedBody.role}`);
+    res.json({ success: true, data: { ...updated, user: userSafe } });
+  } catch (err) {
+    logger.error(`Error updating employee role for id=${parsedId}: ${err}`);
     sendError(res, 500, err);
   }
 });

@@ -36,7 +36,6 @@ import {
   setRequiredSlotsForShift,
   setShiftExchangeRequestStatus,
   toAssignmentArray,
-  updateEmployeeRole,
   getCurrentUser,
   saveStore,
 } from "../lib/store";
@@ -46,7 +45,11 @@ import {
   removeEmployee,
   getEmployees,
 } from "../api/schedule";
-import { createEmployee, type EmployeeRecord } from "../api/employee";
+import {
+  createEmployee,
+  type EmployeeRecord,
+  updateEmployeeRoleApi,
+} from "../api/employee";
 
 type EmployerSection = "employees" | "schedule";
 
@@ -454,16 +457,37 @@ export default function EmployerPage(): ReactElement {
   };
 
   // Update an employee role from the employee list.
-  const onRoleChange = (employeeName: string, nextRole: string): void => {
-    const nextStore = getStore();
-    updateEmployeeRole(nextStore, employeeName, nextRole);
-    appendScheduleAudit(nextStore, {
-      actor: "admin",
-      role: "employer",
-      action: "change-role",
-      details: `${employeeName} role changed to ${nextRole}`,
-    });
-    setStore(nextStore);
+  const onRoleChange = async (
+    employeeName: string,
+    nextRole: string,
+  ): Promise<void> => {
+    const employee = backendEmployees.find(
+      (entry) => `${entry.firstName} ${entry.lastName}`.trim() === employeeName,
+    );
+    if (!employee) {
+      window.alert("Employee not found in backend data");
+      return;
+    }
+
+    try {
+      await updateEmployeeRoleApi(employee.id, nextRole);
+      await loadEmployees();
+
+      const nextStore = getStore();
+      appendScheduleAudit(nextStore, {
+        actor: "admin",
+        role: "employer",
+        action: "change-role",
+        details: `${employeeName} role changed to ${nextRole}`,
+      });
+      setStore(nextStore);
+    } catch (err: any) {
+      console.error("Failed to update employee role:", err);
+      window.alert(
+        "Failed to update role: " +
+          getApiErrorMessage(err, "Could not update employee role"),
+      );
+    }
   };
 
   // Approve or reject a pending shift handover request.
