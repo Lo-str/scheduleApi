@@ -10,12 +10,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { getProfileImage, setProfileImage } from "../assets/profileImages";
-import {
-  getSchedule,
-  assignEmployee,
-  removeEmployee,
-  type ScheduleEntry,
-} from "../lib/api";
+import { type ScheduleEntry } from "../api/employee";
 import {
   EMAIL_PATTERN,
   EMPLOYEE_ROLE_OPTIONS,
@@ -44,6 +39,8 @@ import {
   addEmployee,
   getCurrentUser,
 } from "../lib/store";
+import { getSchedule, assignEmployee, removeEmployee } from "../api/schedule";
+import { createEmployee } from "../api/employee";
 
 type EmployerSection = "employees" | "schedule";
 
@@ -308,7 +305,9 @@ export default function EmployerPage(): ReactElement {
   };
 
   // Create a new employee user from the register form.
-  const onRegister = (event: FormEvent<HTMLFormElement>): void => {
+  const onRegister = async (
+    event: FormEvent<HTMLFormElement>,
+  ): Promise<void> => {
     event.preventDefault();
     const fullName = `${form.firstName.trim()} ${form.lastName.trim()}`.trim();
     const email = form.email.trim();
@@ -323,6 +322,24 @@ export default function EmployerPage(): ReactElement {
     const loginCode = form.loginCode.trim();
     if (!loginCode) {
       setRegisterError("Enter a login code for the employee.");
+      return;
+    }
+    // Try creating the employee on the backend first. If that fails show the
+    // returned error. On success, also update the local store so the UI stays
+    // in sync with the in-memory data.
+    try {
+      await createEmployee({
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email,
+        password: loginCode,
+        loginCode,
+      });
+    } catch (err: any) {
+      console.error("Failed to create employee (backend):", err);
+      setRegisterError(
+        err?.response?.data || err?.message || "Failed to create employee",
+      );
       return;
     }
 

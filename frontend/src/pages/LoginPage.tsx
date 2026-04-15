@@ -2,7 +2,7 @@ import { type FormEvent, type ReactElement, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { appApi } from "../lib/api";
 import loginLogo from "../assets/login-logo.png";
-import { handleLogin } from "../api/login.js"
+import { handleLogin } from "../api/login.js";
 
 type LoginFormState = {
   username: string;
@@ -21,22 +21,22 @@ export default function LoginPage(): ReactElement {
 
   // Submit login details and create the session.
   const onSubmit = async (event: { preventDefault: () => void }) => {
-    event.preventDefault()
-    const normalizedUsername = form.username.trim()
+    event.preventDefault();
+    const normalizedUsername = form.username.trim();
 
-    const result = await handleLogin(normalizedUsername, form.password)
+    const result = await handleLogin(normalizedUsername, form.password);
 
     if (!result.success) {
-      setError("Incorrect login details.")
-      return
+      setError("Incorrect login details.");
+      return;
     }
 
     if (result.role === "employer") {
-      navigate("/employer", { replace: true })
+      navigate("/employer", { replace: true });
     } else {
-      navigate("/employee", { replace: true })
+      navigate("/employee", { replace: true });
     }
-  }
+  };
 
   return (
     <div className="page login-page">

@@ -15,14 +15,7 @@ import {
   TOAST_DURATION_MS,
   getRoleColorClass,
 } from "../lib/constants";
-import {
-  assignEmployee,
-  getEmployees,
-  getSchedule,
-  removeEmployee,
-  type EmployeeRecord,
-  type ScheduleEntry,
-} from "../lib/api";
+import { type EmployeeRecord, type ScheduleEntry } from "../api/employee";
 import {
   type AvailabilityByShift,
   type DayName,
@@ -44,6 +37,12 @@ import {
   toAssignmentArray,
   updateUserProfile,
 } from "../lib/store";
+import {
+  assignEmployee,
+  getSchedule,
+  removeEmployee,
+  getEmployees,
+} from "../api/schedule";
 
 type EmployeeSection = "profile" | "availability" | "schedule";
 
