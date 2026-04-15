@@ -35,5 +35,8 @@ export const createEmployee = async (data: {
   loginCode: string;
 }) => {
   const response = await api.post("/employees", data);
-  return response.data;
+  return response.data as {
+    success: boolean;
+    data: EmployeeRecord;
+  };
 };

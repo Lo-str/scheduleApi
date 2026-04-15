@@ -9,7 +9,11 @@ import {
 } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { getProfileImage, setProfileImage } from "../assets/profileImages";
+import {
+  getProfileImage,
+  prepareProfileImage,
+  setProfileImage,
+} from "../assets/profileImages";
 import {
   EMPLOYEE_ROLE_OPTIONS,
   TOAST_DURATION_MS,
@@ -312,7 +316,9 @@ export default function EmployeePage(): ReactElement {
     showToast("Profile updated");
   };
 
-  const onProfileImageChange = (event: ChangeEvent<HTMLInputElement>): void => {
+  const onProfileImageChange = async (
+    event: ChangeEvent<HTMLInputElement>,
+  ): Promise<void> => {
     const file = event.target.files?.[0];
     if (!file) {
       setSelectedProfileImageDataUrl("");
@@ -323,13 +329,12 @@ export default function EmployeePage(): ReactElement {
       event.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSelectedProfileImageDataUrl(
-        typeof reader.result === "string" ? reader.result : "",
-      );
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageDataUrl = await prepareProfileImage(file);
+      setSelectedProfileImageDataUrl(imageDataUrl);
+    } catch {
+      window.alert("Could not read selected image.");
+    }
   };
 
   // Rotate one availability cell to the next state.
@@ -637,7 +642,6 @@ export default function EmployeePage(): ReactElement {
           {/* Availability section: editable personal matrix + read-only team view. */}
           {section === "availability" && (
             <section className="panel">
-
               <h3>My Availability</h3>
               <div className="table-wrap">
                 <table className="schedule-matrix-table">

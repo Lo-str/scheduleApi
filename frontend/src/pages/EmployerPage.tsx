@@ -9,7 +9,11 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo.png";
-import { getProfileImage, setProfileImage } from "../assets/profileImages";
+import {
+  getProfileImage,
+  prepareProfileImage,
+  setProfileImage,
+} from "../assets/profileImages";
 import { type ScheduleEntry } from "../api/schedule";
 import {
   EMAIL_PATTERN,
@@ -404,13 +408,26 @@ export default function EmployerPage(): ReactElement {
     }
     // Create the employee through the backend and then refresh employee data.
     try {
-      await createEmployee({
+      const createdEmployeeResponse = await createEmployee({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email,
         password: loginCode,
         loginCode,
       });
+
+      const createdEmployee = createdEmployeeResponse.data;
+
+      if (registerImageDataUrl) {
+        setProfileImage(
+          createdEmployee.loginCode || loginCode,
+          registerImageDataUrl,
+        );
+        setProfileImage(
+          createdEmployee.user.email.split("@")[0] || loginCode,
+          registerImageDataUrl,
+        );
+      }
     } catch (err: any) {
       console.error("Failed to create employee (backend):", err);
       const rawError = err?.response?.data;
@@ -429,10 +446,6 @@ export default function EmployerPage(): ReactElement {
     }
 
     await loadEmployees();
-
-    if (registerImageDataUrl) {
-      setProfileImage(loginCode, registerImageDataUrl);
-    }
     const nextStore = getStore();
     appendScheduleAudit(nextStore, {
       actor: "admin",
@@ -456,9 +469,9 @@ export default function EmployerPage(): ReactElement {
     showToast("Employee created");
   };
 
-  const onRegisterImageChange = (
+  const onRegisterImageChange = async (
     event: ChangeEvent<HTMLInputElement>,
-  ): void => {
+  ): Promise<void> => {
     const file = event.target.files?.[0];
     if (!file) {
       setRegisterImageDataUrl("");
@@ -469,17 +482,13 @@ export default function EmployerPage(): ReactElement {
       event.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setRegisterImageDataUrl(
-        typeof reader.result === "string" ? reader.result : "",
-      );
+    try {
+      const imageDataUrl = await prepareProfileImage(file);
+      setRegisterImageDataUrl(imageDataUrl);
       setRegisterError("");
-    };
-    reader.onerror = () => {
+    } catch {
       setRegisterError("Could not read selected image.");
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   // Update an employee role from the employee list.
