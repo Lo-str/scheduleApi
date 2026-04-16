@@ -56,19 +56,3 @@ export function getCurrentUser(): SessionUser | null {
 export function clearCurrentUser(): void {
   sessionStorage.removeItem("sessionUser");
 }
-
-// Validate login credentials against store users.
-export function authenticate(
-  username: string,
-  password: string,
-  role?: RoleName,
-): User | null {
-  const store = getStore();
-  const user = store.users.find(
-    (entry) =>
-      entry.username === username.toLowerCase().trim() &&
-      entry.password === password &&
-      (role ? entry.role === role : true),
-  );
-  return user || null;
-}
