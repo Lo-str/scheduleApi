@@ -4,6 +4,7 @@ import {
   Fragment,
   type ReactElement,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -20,6 +21,10 @@ import {
   getRoleColorClass,
 } from "../lib/constants";
 import { type EmployeeRecord } from "../api/employee";
+import {
+  getAvailability as getBackendAvailability,
+  updateAvailability,
+} from "../api/apiAvailability";
 import { type ScheduleEntry } from "../api/schedule";
 import {
   type AvailabilityByShift,
@@ -121,7 +126,7 @@ export default function EmployeePage(): ReactElement {
     [],
   );
   const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
-  const weekDays = buildWeekDays(weekStartIso);
+  const weekDays = useMemo(() => buildWeekDays(weekStartIso), [weekStartIso]);
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
   const myUserFromStore = store.users.find(
@@ -206,6 +211,54 @@ export default function EmployeePage(): ReactElement {
     );
     return match?.id ?? null;
   };
+
+  const getShiftIdByName = (shiftName: ShiftName): number | null => {
+    const match = scheduleEntries.find((entry) => entry.shift?.name === shiftName);
+    return match?.shift?.id ?? null;
+  };
+
+  useEffect(() => {
+    if (!backendEmployee?.id) return;
+
+    const loadAvailabilityFromBackend = async (): Promise<void> => {
+      try {
+        const records = await getBackendAvailability(backendEmployee.id);
+        const isoToDay = new Map(
+          weekDays.map((entry) => [entry.isoDate, entry.label] as const),
+        );
+        const shiftIdToName = new Map<number, ShiftName>();
+
+        SHIFTS.forEach((shiftName) => {
+          const shiftId = getShiftIdByName(shiftName);
+          if (shiftId) shiftIdToName.set(shiftId, shiftName);
+        });
+
+        setAvailabilityDraft((prev) => {
+          const next: AvailabilityByShift = {
+            MORNING: { ...prev.MORNING },
+            AFTERNOON: { ...prev.AFTERNOON },
+            NIGHT: { ...prev.NIGHT },
+          };
+
+          for (const record of records) {
+            const day = isoToDay.get(record.date.slice(0, 10));
+            const shiftName = record.shift?.name ?? shiftIdToName.get(record.shiftId);
+            if (!day || !shiftName) continue;
+
+            next[shiftName][day] = record.available
+              ? "available"
+              : "unavailable";
+          }
+
+          return next;
+        });
+      } catch (error) {
+        console.error("Failed to load backend availability:", error);
+      }
+    };
+
+    loadAvailabilityFromBackend();
+  }, [backendEmployee?.id, scheduleEntries, weekDays]);
 
   const getBackendAssignmentsForShiftDate = (
     shiftName: ShiftName,
@@ -355,7 +408,40 @@ export default function EmployeePage(): ReactElement {
   };
 
   // Save current availability matrix for the logged-in user.
-  const saveAvailability = (): void => {
+  const saveAvailability = async (): Promise<void> => {
+    if (!backendEmployee?.id) {
+      window.alert("Employee not found in backend data");
+      return;
+    }
+
+    const shiftIdByName = new Map<ShiftName, number>();
+    for (const shiftName of SHIFTS) {
+      const shiftId = getShiftIdByName(shiftName);
+      if (!shiftId) {
+        window.alert("Could not map shifts from backend schedule data");
+        return;
+      }
+      shiftIdByName.set(shiftName, shiftId);
+    }
+
+    const updates = weekDays.flatMap((day) =>
+      SHIFTS.map((shiftName) => ({
+        shiftId: shiftIdByName.get(shiftName)!,
+        date: day.isoDate,
+        available: availabilityDraft[shiftName][day.label] !== "unavailable",
+      })),
+    );
+
+    try {
+      await Promise.all(
+        updates.map((payload) => updateAvailability(backendEmployee.id, payload)),
+      );
+    } catch (error) {
+      console.error("Failed to save backend availability:", error);
+      window.alert("Failed to save availability to backend");
+      return;
+    }
+
     const nextStore = getStore();
     setAvailabilityForUser(nextStore, sessionUser.username, availabilityDraft);
     appendScheduleAudit(nextStore, {

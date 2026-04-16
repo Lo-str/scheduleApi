@@ -1,5 +1,7 @@
 import api from "./apiBase.js"
 
+type ShiftName = "MORNING" | "AFTERNOON" | "NIGHT";
+
 type AvailabilityPayload = {
   shiftId: number;
   date: string;
@@ -8,7 +10,7 @@ type AvailabilityPayload = {
 
 type ShiftData = {
   id: number;
-  shift: "MORNING" | "AFTERNOON" | "NIGHT";
+  name: ShiftName;
 };
 
 export type AvailabilityRecord = {
