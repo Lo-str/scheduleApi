@@ -1,5 +1,4 @@
 import {
-  authenticate,
   clearCurrentUser,
   getCurrentUser,
   getStore,
@@ -7,7 +6,6 @@ import {
   setCurrentUser,
   type SessionUser,
   type Store,
-  type User,
 } from "./store";
 
 // Keep UI layers decoupled from storage details through this adapter.
@@ -25,11 +23,6 @@ export const appApi = {
   // Clear active session during logout.
   clearSessionUser(): void {
     clearCurrentUser();
-  },
-
-  // Validate credentials and return the matching user, if any.
-  authenticateUser(username: string, password: string): User | null {
-    return authenticate(username, password);
   },
 
   // Expose store read for page-level data rendering.

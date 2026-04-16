@@ -3,6 +3,7 @@ import {
   Fragment,
   type ReactElement,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { useNavigate } from "react-router-dom";
@@ -26,7 +27,6 @@ import {
   type ShiftName,
   type Store,
   appendScheduleAudit,
-  canAssignEmployeeToShift,
   clearCurrentUser,
   formatShiftLabel,
   getAvailabilityForUser,
@@ -35,9 +35,7 @@ import {
   getStore,
   setRequiredSlotsForShift,
   setShiftExchangeRequestStatus,
-  toAssignmentArray,
   getCurrentUser,
-  saveStore,
 } from "../lib/store";
 import {
   getSchedule,
@@ -153,40 +151,27 @@ export default function EmployerPage(): ReactElement {
     }
   };
 
-  const toStoreEmployees = (employees: EmployeeRecord[]) => {
-    const current = getStore();
-    return employees.map((employee) => {
-      const name = `${employee.firstName} ${employee.lastName}`.trim();
-      const existing = current.employees.find(
-        (entry) => entry.email === employee.user.email || entry.name === name,
-      );
-
-      return {
-        username:
-          employee.loginCode || employee.user.email.split("@")[0] || "employee",
-        name,
-        role: employee.role || existing?.role || EMPLOYEE_ROLE_OPTIONS[0],
-        email: employee.user.email,
-        phone: employee.phone || "",
-        profileImageKey: employee.profileImageKey || existing?.profileImageKey,
-      };
-    });
-  };
-
   const loadEmployees = async (): Promise<void> => {
     try {
       const response = await getEmployees();
       setBackendEmployees(response.data);
-
-      const nextStore = getStore();
-      nextStore.employees = toStoreEmployees(response.data);
-      saveStore(nextStore);
-      setStore(nextStore);
     } catch (err) {
       console.error("Failed to load employees:", err);
       window.alert("Failed to load employees from backend");
     }
   };
+
+  const employeeList = useMemo(
+    () =>
+      backendEmployees.map((emp) => ({
+        username: emp.loginCode,
+        name: `${emp.firstName} ${emp.lastName}`.trim(),
+        email: emp.user.email,
+        role: emp.role,
+        profileImageKey: emp.profileImageKey,
+      })),
+    [backendEmployees],
+  );
 
   const getApiErrorMessage = (err: any, fallback: string): string => {
     const apiError = err?.response?.data;
@@ -209,7 +194,7 @@ export default function EmployerPage(): ReactElement {
     return assignments.filter((name) => {
       if (dayFilter !== "all" && dayFilter !== day) return false;
       if (roleFilter === "all") return true;
-      const employee = store.employees.find((entry) => entry.name === name);
+      const employee = employeeList.find((entry) => entry.name === name);
       return employee?.role === roleFilter;
     });
   };
@@ -227,7 +212,7 @@ export default function EmployerPage(): ReactElement {
       type: "assigned" as const,
       label: getFirstName(name),
       rawName: name,
-      role: store.employees.find((entry) => entry.name === name)?.role,
+      role: employeeList.find((entry) => entry.name === name)?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -577,7 +562,7 @@ export default function EmployerPage(): ReactElement {
             <section className="panel">
               <h2>List of Employees</h2>
               <div className="employee-cards">
-                {store.employees.map((employee) => (
+                {employeeList.map((employee) => (
                   <article className="employee-card" key={employee.username}>
                     {getProfileImage(
                       employee.username,
@@ -789,7 +774,7 @@ export default function EmployerPage(): ReactElement {
 
               <div className="staff-pool">
                 {/* Staff picker feeds "Add selected" actions in planning mode. */}
-                {store.employees.map((employee) => (
+                {employeeList.map((employee) => (
                   <button
                     key={employee.username}
                     className={`staff-pool-pill ${planningMode ? getRoleColorClass(employee.role) : ""} ${selectedStaffUsername === employee.username ? "active" : ""}`}
@@ -949,7 +934,7 @@ export default function EmployerPage(): ReactElement {
                         if (dayFilter !== "all" && dayFilter !== day.label)
                           return false;
                         if (roleFilter === "all") return true;
-                        const employee = store.employees.find(
+                        const employee = employeeList.find(
                           (entry) => entry.name === name,
                         );
                         return employee?.role === roleFilter;
@@ -1082,21 +1067,21 @@ export default function EmployerPage(): ReactElement {
                         <tr key={`employer-team-${shift}`}>
                           <td>{formatShiftLabel(shift)}</td>
                           {DAYS.map((day) => {
-                            const availableMembers = store.employees.filter(
+                            const availableMembers = employeeList.filter(
                               (employee) =>
                                 getAvailabilityForUser(
                                   store,
                                   employee.username,
                                 )[shift][day] === "available",
                             );
-                            const maybeMembers = store.employees.filter(
+                            const maybeMembers = employeeList.filter(
                               (employee) =>
                                 getAvailabilityForUser(
                                   store,
                                   employee.username,
                                 )[shift][day] === "maybe",
                             );
-                            const unavailableMembers = store.employees.filter(
+                            const unavailableMembers = employeeList.filter(
                               (employee) =>
                                 getAvailabilityForUser(
                                   store,
