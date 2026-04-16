@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { prisma } from "../db.js";
 import { loginSchema } from "../schemas/loginSchema.js";
 import { sendError, inputValidation } from "../helpers/response.js";
+import { signJwt } from "../middleware/auth.js";
 import logger from "../logger.js";
 
 export async function login(req: Request, res: Response) {
@@ -55,10 +56,16 @@ export async function login(req: Request, res: Response) {
     : user.email;
   const resolvedUsername = user.employee?.loginCode ?? user.email;
 
+  const token = signJwt({
+    userId: user.id,
+    role: user.role as "EMPLOYER" | "EMPLOYEE",
+  });
+
   logger.info(`User logged in: ${name} (${role})`);
   res.json({
     username: resolvedUsername,
     role,
     name,
+    token,
   });
 }

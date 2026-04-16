@@ -3,10 +3,15 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 import { prisma } from "../db.js";
 import { sendError, inputValidation } from "../helpers/response.js";
+import { authenticateJWT } from "../middleware/auth.js";
 import { requireEmployer } from "../middleware/rbac.js";
 import logger from "../logger.js";
 
 const router = express.Router();
+
+router.use(authenticateJWT, requireEmployer);
+
+router.use(requireEmployer);
 const CreateEmployeeSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
