@@ -213,7 +213,9 @@ export default function EmployeePage(): ReactElement {
   };
 
   const getShiftIdByName = (shiftName: ShiftName): number | null => {
-    const match = scheduleEntries.find((entry) => entry.shift?.name === shiftName);
+    const match = scheduleEntries.find(
+      (entry) => entry.shift?.name === shiftName,
+    );
     return match?.shift?.id ?? null;
   };
 
@@ -242,7 +244,8 @@ export default function EmployeePage(): ReactElement {
 
           for (const record of records) {
             const day = isoToDay.get(record.date.slice(0, 10));
-            const shiftName = record.shift?.name ?? shiftIdToName.get(record.shiftId);
+            const shiftName =
+              record.shift?.name ?? shiftIdToName.get(record.shiftId);
             if (!day || !shiftName) continue;
 
             next[shiftName][day] = record.available
@@ -434,7 +437,9 @@ export default function EmployeePage(): ReactElement {
 
     try {
       await Promise.all(
-        updates.map((payload) => updateAvailability(backendEmployee.id, payload)),
+        updates.map((payload) =>
+          updateAvailability(backendEmployee.id, payload),
+        ),
       );
     } catch (error) {
       console.error("Failed to save backend availability:", error);

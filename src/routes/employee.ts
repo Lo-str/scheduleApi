@@ -51,7 +51,7 @@ router.post("/", async (req, res) => {
     });
     if (existingUser) {
       logger.warn(`Email already in use: ${parsed.email}`);
-      sendError(res, 400, "Email already in use");
+      sendError(res, 409, "Email already in use");
       return;
     }
 
@@ -60,7 +60,7 @@ router.post("/", async (req, res) => {
     });
     if (existingEmployee) {
       logger.warn(`Login code already in use: ${normalizedLoginCode}`);
-      sendError(res, 400, "Login code already in use");
+      sendError(res, 409, "Login code already in use");
       return;
     }
 
@@ -117,6 +117,15 @@ router.patch("/:employeeId/role", async (req, res) => {
     );
     res.json({ success: true, data: { ...updated, user: userSafe } });
   } catch (err) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code?: string }).code === "P2025"
+    ) {
+      sendError(res, 404, "Employee not found");
+      return;
+    }
     logger.error(`Error updating employee role for id=${parsedId}: ${err}`);
     sendError(res, 500, err);
   }

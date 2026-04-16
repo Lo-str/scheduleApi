@@ -1,4 +1,4 @@
-import api from "./apiBase.js"
+import api from "./apiBase.js";
 
 type ShiftName = "MORNING" | "AFTERNOON" | "NIGHT";
 
@@ -25,7 +25,9 @@ export type AvailabilityRecord = {
 export const getAvailability = async (
   employeeId: number,
 ): Promise<AvailabilityRecord[]> => {
-  const response = await api.get<AvailabilityRecord[]>(`/availability/${employeeId}`);
+  const response = await api.get<AvailabilityRecord[]>(
+    `/availability/${employeeId}`,
+  );
   return response.data;
 };
 
@@ -33,7 +35,9 @@ export const updateAvailability = async (
   employeeId: number,
   payload: AvailabilityPayload,
 ): Promise<AvailabilityRecord> => {
-  const response = await api.put<AvailabilityRecord>(`/availability/${employeeId}`, payload);
+  const response = await api.put<AvailabilityRecord>(
+    `/availability/${employeeId}`,
+    payload,
+  );
   return response.data;
 };
-

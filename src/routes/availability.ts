@@ -6,17 +6,28 @@ import logger from "../logger.js"
 
 const router = Router()
 const availabilitySchema = z.object({
-  shiftId: z.number(),
-  date: z.string(),
+  shiftId: z.number().int().positive(),
+  date: z.coerce.date(),
   available: z.boolean()
 })
 
 // GET /availability/:employeeId
 router.get("/:employeeId", async (req, res) => {
-  const { employeeId } = req.params
+  const employeeId = Number(req.params.employeeId)
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    sendError(res, 400, "Invalid employee id")
+    return
+  }
+
   try {
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId } })
+    if (!employee) {
+      sendError(res, 404, "Employee not found")
+      return
+    }
+
     const availability = await prisma.availability.findMany({
-      where: { employeeId: Number(employeeId) },
+      where: { employeeId },
       include: { shift: true }
     })
     logger.info(`Fetched availability for employee ${employeeId}`)
@@ -30,22 +41,43 @@ router.get("/:employeeId", async (req, res) => {
 // PUT /availability/:employeeId
 router.put("/:employeeId", async (req, res) => {
   if (!inputValidation(availabilitySchema, req.body, res)) return
-  const { employeeId } = req.params
+  const employeeId = Number(req.params.employeeId)
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    sendError(res, 400, "Invalid employee id")
+    return
+  }
+
   try {
     const parsed = availabilitySchema.parse(req.body)
+
+    const [employee, shift] = await Promise.all([
+      prisma.employee.findUnique({ where: { id: employeeId } }),
+      prisma.shift.findUnique({ where: { id: parsed.shiftId } }),
+    ])
+
+    if (!employee) {
+      sendError(res, 404, "Employee not found")
+      return
+    }
+
+    if (!shift) {
+      sendError(res, 404, "Shift not found")
+      return
+    }
+
     const newAvailability = await prisma.availability.upsert({
       where: {
         employeeId_shiftId_date: {
-          employeeId: Number(employeeId),
+          employeeId,
           shiftId: parsed.shiftId,
-          date: new Date(parsed.date),
+          date: parsed.date,
         }
       },
       update: { available: parsed.available },
       create: {
-        employeeId: Number(employeeId),
+        employeeId,
         shiftId: parsed.shiftId,
-        date: new Date(parsed.date),
+        date: parsed.date,
         available: parsed.available,
       }
     })
