@@ -34,8 +34,8 @@ import {
   type ShiftName,
   type Store,
   appendScheduleAudit,
-  canAssignEmployeeToShift,
   clearCurrentUser,
+  createDefaultAvailability,
   createShiftExchangeRequest,
   formatShiftLabel,
   getAvailabilityForUser,
@@ -44,7 +44,6 @@ import {
   getRequiredSlotsForShift,
   getStore,
   setAvailabilityForUser,
-  toAssignmentArray,
   updateUserProfile,
 } from "../lib/store";
 import {
@@ -64,7 +63,7 @@ type ProfileFormState = {
   loginCode: string;
 };
 
-const AVAILABILITY_STATES = ["available", "maybe", "unavailable"] as const;
+const AVAILABILITY_STATES = ["available", "unavailable"] as const;
 
 type WeekDayCell = {
   label: DayName;
@@ -125,14 +124,14 @@ export default function EmployeePage(): ReactElement {
   const [backendEmployees, setBackendEmployees] = useState<EmployeeRecord[]>(
     [],
   );
+  const [backendAvailabilityByLogin, setBackendAvailabilityByLogin] = useState<
+    Record<string, AvailabilityByShift>
+  >({});
   const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
   const weekDays = useMemo(() => buildWeekDays(weekStartIso), [weekStartIso]);
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
 
-  const myUserFromStore = store.users.find(
-    (entry) => entry.username === safeSessionUser.username,
-  );
-  const myUser = myUserFromStore ?? {
+  const myUser = {
     username: safeSessionUser.username,
     role: safeSessionUser.role,
     name: safeSessionUser.name || safeSessionUser.username,
@@ -140,9 +139,6 @@ export default function EmployeePage(): ReactElement {
     phone: "",
     password: "",
   };
-  const myEmployee = store.employees.find(
-    (entry) => entry.username === safeSessionUser.username,
-  );
   const backendEmployee = backendEmployees.find(
     (entry) =>
       entry.loginCode === safeSessionUser.username ||
@@ -153,7 +149,7 @@ export default function EmployeePage(): ReactElement {
     name: myUser?.name || "",
     email: myUser?.email || "",
     phone: myUser?.phone || "",
-    role: myEmployee?.role || EMPLOYEE_ROLE_OPTIONS[0],
+    role: backendEmployee?.role || EMPLOYEE_ROLE_OPTIONS[0],
     loginCode: myUser?.password || "",
   });
   const [availabilityDraft, setAvailabilityDraft] =
@@ -178,6 +174,41 @@ export default function EmployeePage(): ReactElement {
 
     loadBackendData();
   }, []);
+
+  useEffect(() => {
+    if (backendEmployees.length === 0) return;
+
+    const isoToDay = new Map(
+      weekDays.map((entry) => [entry.isoDate, entry.label] as const),
+    );
+
+    const loadAllAvailability = async (): Promise<void> => {
+      const results = await Promise.allSettled(
+        backendEmployees.map((emp) => getBackendAvailability(emp.id)),
+      );
+
+      const map: Record<string, AvailabilityByShift> = {};
+      results.forEach((result, i) => {
+        const emp = backendEmployees[i];
+        const availability = createDefaultAvailability();
+        if (result.status === "fulfilled") {
+          for (const record of result.value) {
+            const day = isoToDay.get(record.date.slice(0, 10));
+            const shiftName = record.shift?.name;
+            if (!day || !shiftName) continue;
+            availability[shiftName][day] = record.available
+              ? "available"
+              : "unavailable";
+          }
+        }
+        map[emp.loginCode] = availability;
+      });
+
+      setBackendAvailabilityByLogin(map);
+    };
+
+    loadAllAvailability();
+  }, [backendEmployees, weekDays]);
 
   if (!sessionUser) return <Navigate to="/login" replace />;
 
@@ -311,7 +342,9 @@ export default function EmployeePage(): ReactElement {
       if (dayFilter !== "all" && dayFilter !== day) return false;
       if (name === myUser.name) return true;
       if (roleFilter === "all") return true;
-      const employee = store.employees.find((entry) => entry.name === name);
+      const employee = backendEmployees.find(
+        (e) => `${e.firstName} ${e.lastName}`.trim() === name,
+      );
       return employee?.role === roleFilter;
     });
   };
@@ -331,7 +364,9 @@ export default function EmployeePage(): ReactElement {
       label: name === myUser.name ? "You" : getFirstName(name),
       rawName: name,
       isMine: name === myUser.name,
-      role: store.employees.find((entry) => entry.name === name)?.role,
+      role: backendEmployees.find(
+        (e) => `${e.firstName} ${e.lastName}`.trim() === name,
+      )?.role,
     }));
     const open = Array.from(
       { length: Math.max(0, requiredSlots - names.length) },
@@ -417,19 +452,20 @@ export default function EmployeePage(): ReactElement {
       return;
     }
 
-    const shiftIdByName = new Map<ShiftName, number>();
-    for (const shiftName of SHIFTS) {
-      const shiftId = getShiftIdByName(shiftName);
-      if (!shiftId) {
-        window.alert("Could not map shifts from backend schedule data");
-        return;
-      }
-      shiftIdByName.set(shiftName, shiftId);
-    }
+    const nextStore = getStore();
+    setAvailabilityForUser(nextStore, sessionUser.username, availabilityDraft);
+    appendScheduleAudit(nextStore, {
+      actor: sessionUser.username,
+      role: "employee",
+      action: "update-availability",
+      details: `${myUser.name} updated availability`,
+    });
+    refresh();
+    showToast("Availability saved");
 
     const updates = weekDays.flatMap((day) =>
       SHIFTS.map((shiftName) => ({
-        shiftId: shiftIdByName.get(shiftName)!,
+        shift: shiftName,
         date: day.isoDate,
         available: availabilityDraft[shiftName][day.label] !== "unavailable",
       })),
@@ -443,20 +479,8 @@ export default function EmployeePage(): ReactElement {
       );
     } catch (error) {
       console.error("Failed to save backend availability:", error);
-      window.alert("Failed to save availability to backend");
-      return;
+      window.alert("Availability saved locally but failed to sync to backend");
     }
-
-    const nextStore = getStore();
-    setAvailabilityForUser(nextStore, sessionUser.username, availabilityDraft);
-    appendScheduleAudit(nextStore, {
-      actor: sessionUser.username,
-      role: "employee",
-      action: "update-availability",
-      details: `${myUser.name} updated availability`,
-    });
-    refresh();
-    showToast("Availability saved");
   };
 
   // Join an open shift as the logged-in employee.
@@ -581,7 +605,7 @@ export default function EmployeePage(): ReactElement {
               {headerInitial}
             </div>
           )}
-          <h1>Employee</h1>
+          <h1>{getFirstName(myUser.name)}</h1>
           <p className="topbar-subtitle">My Schedule</p>
         </div>
         <div className="topbar-right">
@@ -790,7 +814,7 @@ export default function EmployeePage(): ReactElement {
                   </button>
                 </div>
                 <p className="muted team-availability-legend">
-                  Green = available, yellow = maybe, red = unavailable.
+                  Green = available, red = unavailable.
                 </p>
                 <div className="table-wrap">
                   <table className="schedule-matrix-table">
@@ -807,26 +831,16 @@ export default function EmployeePage(): ReactElement {
                         <tr key={`team-availability-${shift}`}>
                           <td>{formatShiftLabel(shift)}</td>
                           {DAYS.map((day) => {
-                            const availableMembers = store.employees.filter(
+                            const getState = (loginCode: string) =>
+                              (backendAvailabilityByLogin[loginCode] ??
+                                createDefaultAvailability())[shift][day];
+                            const availableMembers = backendEmployees.filter(
                               (employee) =>
-                                getAvailabilityForUser(
-                                  store,
-                                  employee.username,
-                                )[shift][day] === "available",
+                                getState(employee.loginCode) === "available",
                             );
-                            const maybeMembers = store.employees.filter(
+                            const unavailableMembers = backendEmployees.filter(
                               (employee) =>
-                                getAvailabilityForUser(
-                                  store,
-                                  employee.username,
-                                )[shift][day] === "maybe",
-                            );
-                            const unavailableMembers = store.employees.filter(
-                              (employee) =>
-                                getAvailabilityForUser(
-                                  store,
-                                  employee.username,
-                                )[shift][day] === "unavailable",
+                                getState(employee.loginCode) === "unavailable",
                             );
 
                             return (
@@ -840,9 +854,6 @@ export default function EmployeePage(): ReactElement {
                                       <span className="availability-chip available team-member-chip team-count-chip">
                                         A: {availableMembers.length}
                                       </span>
-                                      <span className="availability-chip maybe team-member-chip team-count-chip">
-                                        M: {maybeMembers.length}
-                                      </span>
                                       <span className="availability-chip unavailable team-member-chip team-count-chip">
                                         U: {unavailableMembers.length}
                                       </span>
@@ -855,40 +866,32 @@ export default function EmployeePage(): ReactElement {
                                             No one available
                                           </span>
                                         ) : (
-                                          availableMembers.map((employee) => (
-                                            <span
-                                              className="availability-chip available team-member-chip"
-                                              key={`available-${shift}-${day}-${employee.username}`}
-                                            >
-                                              {toDisplayName(employee.name)}
-                                            </span>
-                                          ))
+                                          availableMembers.map((employee) => {
+                                            const empName = `${employee.firstName} ${employee.lastName}`.trim();
+                                            return (
+                                              <span
+                                                className="availability-chip available team-member-chip"
+                                                key={`available-${shift}-${day}-${employee.loginCode}`}
+                                              >
+                                                {toDisplayName(empName)}
+                                              </span>
+                                            );
+                                          })
                                         )}
                                       </div>
-                                      {maybeMembers.length > 0 && (
-                                        <div className="team-availability-group">
-                                          {maybeMembers.map((employee) => (
-                                            <span
-                                              className="availability-chip maybe team-member-chip"
-                                              key={`maybe-${shift}-${day}-${employee.username}`}
-                                            >
-                                              {toDisplayName(employee.name)}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
                                       {unavailableMembers.length > 0 && (
                                         <div className="team-availability-group">
-                                          {unavailableMembers.map(
-                                            (employee) => (
+                                          {unavailableMembers.map((employee) => {
+                                            const empName = `${employee.firstName} ${employee.lastName}`.trim();
+                                            return (
                                               <span
                                                 className="availability-chip unavailable team-member-chip"
-                                                key={`unavailable-${shift}-${day}-${employee.username}`}
+                                                key={`unavailable-${shift}-${day}-${employee.loginCode}`}
                                               >
-                                                {toDisplayName(employee.name)}
+                                                {toDisplayName(empName)}
                                               </span>
-                                            ),
-                                          )}
+                                            );
+                                          })}
                                         </div>
                                       )}
                                     </>
@@ -1098,14 +1101,15 @@ export default function EmployeePage(): ReactElement {
                                 }
                               >
                                 <option value="">Select colleague</option>
-                                {store.employees
-                                  .filter((entry) => entry.name !== myUser.name)
-                                  .map((entry) => (
+                                {backendEmployees
+                                  .map((e) => `${e.firstName} ${e.lastName}`.trim())
+                                  .filter((name) => name !== myUser.name)
+                                  .map((name) => (
                                     <option
-                                      key={`emp-mobile-${key}-${entry.username}`}
-                                      value={entry.name}
+                                      key={`emp-mobile-${key}-${name}`}
+                                      value={name}
                                     >
-                                      {entry.name}
+                                      {name}
                                     </option>
                                   ))}
                               </select>
@@ -1265,16 +1269,15 @@ export default function EmployeePage(): ReactElement {
                                   }
                                 >
                                   <option value="">Select colleague</option>
-                                  {store.employees
-                                    .filter(
-                                      (entry) => entry.name !== myUser.name,
-                                    )
-                                    .map((entry) => (
+                                  {backendEmployees
+                                    .map((e) => `${e.firstName} ${e.lastName}`.trim())
+                                    .filter((name) => name !== myUser.name)
+                                    .map((name) => (
                                       <option
-                                        key={`${key}-${entry.username}`}
-                                        value={entry.name}
+                                        key={`${key}-${name}`}
+                                        value={name}
                                       >
-                                        {entry.name}
+                                        {name}
                                       </option>
                                     ))}
                                 </select>

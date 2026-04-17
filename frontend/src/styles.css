@@ -1162,10 +1162,6 @@ td:first-child {
     background: #def1ce;
 }
 
-.availability-chip.maybe {
-    background: #f9edbf;
-}
-
 .availability-chip.unavailable {
     background: #f5cccc;
 }

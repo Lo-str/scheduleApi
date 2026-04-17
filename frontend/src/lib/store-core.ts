@@ -5,7 +5,7 @@ export const SHIFTS = ["MORNING", "AFTERNOON", "NIGHT"] as const;
 export type DayName = (typeof DAYS)[number];
 export type ShiftName = (typeof SHIFTS)[number];
 export type RoleName = "employer" | "employee";
-export type AvailabilityState = "available" | "maybe" | "unavailable";
+export type AvailabilityState = "available" | "unavailable";
 
 export const SHIFT_TIMES: Record<ShiftName, string> = {
   MORNING: "7-15",
@@ -103,157 +103,14 @@ export function createDefaultAvailability(): AvailabilityByShift {
       DayName,
       AvailabilityState
     >,
-    NIGHT: Object.fromEntries(DAYS.map((d) => [d, "maybe"])) as Record<
+    NIGHT: Object.fromEntries(DAYS.map((d) => [d, "available"])) as Record<
       DayName,
       AvailabilityState
     >,
   };
 }
 
-const defaultStore: Store = {
-  users: [
-    {
-      username: "admin",
-      password: "1234",
-      role: "employer",
-      name: "Pack Leader",
-      email: "",
-      phone: "",
-    },
-    {
-      username: "amara",
-      password: "1234",
-      role: "employee",
-      name: "Amara Okafor",
-      email: "amara@sundsgarden.se",
-      phone: "070-100 10 10",
-    },
-    {
-      username: "mateo",
-      password: "1234",
-      role: "employee",
-      name: "Mateo Fernández",
-      email: "mateo@sundsgarden.se",
-      phone: "070-200 20 20",
-    },
-    {
-      username: "yuki",
-      password: "1234",
-      role: "employee",
-      name: "Yuki Tanaka",
-      email: "yuki@sundsgarden.se",
-      phone: "070-300 30 30",
-    },
-    {
-      username: "aria",
-      password: "1234",
-      role: "employee",
-      name: "Aria Novak",
-      email: "aria@sundsgarden.se",
-      phone: "070-400 40 40",
-    },
-    {
-      username: "arjun",
-      password: "1234",
-      role: "employee",
-      name: "Arjun Deshmukh",
-      email: "arjun@sundsgarden.se",
-      phone: "070-500 50 50",
-    },
-    {
-      username: "saga",
-      password: "1234",
-      role: "employee",
-      name: "Saga Lindberg",
-      email: "saga@sundsgarden.se",
-      phone: "070-600 60 60",
-    },
-  ],
-  employees: [
-    {
-      username: "amara",
-      name: "Amara Okafor",
-      role: "Head Pawtender",
-      email: "amara@sundsgarden.se",
-      phone: "070-100 10 10",
-    },
-    {
-      username: "mateo",
-      name: "Mateo Fernández",
-      role: "Snack Sprinter",
-      email: "mateo@sundsgarden.se",
-      phone: "070-200 20 20",
-    },
-    {
-      username: "yuki",
-      name: "Yuki Tanaka",
-      role: "Taste Tester",
-      email: "yuki@sundsgarden.se",
-      phone: "070-300 30 30",
-    },
-    {
-      username: "aria",
-      name: "Aria Novak",
-      role: "Chief Napper",
-      email: "aria@sundsgarden.se",
-      phone: "070-400 40 40",
-    },
-    {
-      username: "arjun",
-      name: "Arjun Deshmukh",
-      role: "Snack Sprinter",
-      email: "arjun@sundsgarden.se",
-      phone: "070-500 50 50",
-    },
-    {
-      username: "saga",
-      name: "Saga Lindberg",
-      role: "Head Pawtender",
-      email: "saga@sundsgarden.se",
-      phone: "070-600 60 60",
-    },
-  ],
-  availabilityByUser: {
-    amara: createDefaultAvailability(),
-    mateo: createDefaultAvailability(),
-    yuki: createDefaultAvailability(),
-    aria: createDefaultAvailability(),
-    arjun: createDefaultAvailability(),
-    saga: createDefaultAvailability(),
-  },
-  jobSchedule: {
-    MORNING: {
-      Mon: ["Amara Okafor"],
-      Tue: ["Mateo Fernández"],
-      Wed: ["Yuki Tanaka"],
-      Thu: ["Aria Novak"],
-      Fri: ["Arjun Deshmukh"],
-      Sat: ["Saga Lindberg"],
-      Sun: ["Amara Okafor"],
-    },
-    AFTERNOON: {
-      Mon: ["Mateo Fernández"],
-      Tue: ["Yuki Tanaka"],
-      Wed: ["Aria Novak"],
-      Thu: ["Arjun Deshmukh"],
-      Fri: ["Saga Lindberg"],
-      Sat: ["Amara Okafor"],
-      Sun: ["Mateo Fernández"],
-    },
-    NIGHT: {
-      Mon: ["Yuki Tanaka"],
-      Tue: ["Aria Novak"],
-      Wed: ["Arjun Deshmukh"],
-      Thu: ["Saga Lindberg"],
-      Fri: ["Amara Okafor"],
-      Sat: ["Mateo Fernández"],
-      Sun: ["Yuki Tanaka"],
-    },
-  },
-  shiftRequirements: structuredClone(baseRequirements),
-  shiftExchangeRequests: [],
-  scheduleAudit: [],
-};
+
 
 // Deep-clone JSON-friendly values.
 export function clone<T>(value: T): T {
@@ -314,13 +171,24 @@ function normalizeStore(store: Store): void {
   });
 }
 
+const emptyStore = (): Store => ({
+  users: [],
+  employees: [],
+  availabilityByUser: {},
+  jobSchedule: {
+    MORNING: {} as Record<DayName, string[]>,
+    AFTERNOON: {} as Record<DayName, string[]>,
+    NIGHT: {} as Record<DayName, string[]>,
+  },
+  shiftRequirements: structuredClone(baseRequirements),
+  shiftExchangeRequests: [],
+  scheduleAudit: [],
+});
+
 // Load store from localStorage, normalize schema drift, and persist fixed data.
 export function getStore(): Store {
   const raw = localStorage.getItem("scheduleAppStoreReact");
-  if (!raw) {
-    localStorage.setItem("scheduleAppStoreReact", JSON.stringify(defaultStore));
-    return clone(defaultStore);
-  }
+  if (!raw) return emptyStore();
 
   const parsed = JSON.parse(raw) as Store;
   normalizeStore(parsed);

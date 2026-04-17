@@ -3,7 +3,7 @@ import api from "./apiBase.js";
 type ShiftName = "MORNING" | "AFTERNOON" | "NIGHT";
 
 type AvailabilityPayload = {
-  shiftId: number;
+  shift: ShiftName;
   date: string;
   available: boolean;
 };
