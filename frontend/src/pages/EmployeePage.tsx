@@ -413,6 +413,17 @@ export default function EmployeePage(): ReactElement {
       return;
     }
 
+    const nextStore = getStore();
+    setAvailabilityForUser(nextStore, sessionUser.username, availabilityDraft);
+    appendScheduleAudit(nextStore, {
+      actor: sessionUser.username,
+      role: "employee",
+      action: "update-availability",
+      details: `${myUser.name} updated availability`,
+    });
+    refresh();
+    showToast("Availability saved");
+
     const updates = weekDays.flatMap((day) =>
       SHIFTS.map((shiftName) => ({
         shift: shiftName,
@@ -429,20 +440,8 @@ export default function EmployeePage(): ReactElement {
       );
     } catch (error) {
       console.error("Failed to save backend availability:", error);
-      window.alert("Failed to save availability to backend");
-      return;
+      window.alert("Availability saved locally but failed to sync to backend");
     }
-
-    const nextStore = getStore();
-    setAvailabilityForUser(nextStore, sessionUser.username, availabilityDraft);
-    appendScheduleAudit(nextStore, {
-      actor: sessionUser.username,
-      role: "employee",
-      action: "update-availability",
-      details: `${myUser.name} updated availability`,
-    });
-    refresh();
-    showToast("Availability saved");
   };
 
   // Join an open shift as the logged-in employee.
