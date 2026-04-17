@@ -252,41 +252,6 @@ export default function EmployerPage(): ReactElement {
     }
   }, [section]);
 
-  useEffect(() => {
-    if (backendEmployees.length === 0) return;
-
-    const isoToDay = new Map(
-      weekDays.map((entry) => [entry.isoDate, entry.label] as const),
-    );
-
-    const loadAllAvailability = async (): Promise<void> => {
-      const results = await Promise.allSettled(
-        backendEmployees.map((emp) => getAvailability(emp.id)),
-      );
-
-      const map: Record<string, AvailabilityByShift> = {};
-      results.forEach((result, i) => {
-        const emp = backendEmployees[i];
-        const availability = createDefaultAvailability();
-        if (result.status === "fulfilled") {
-          for (const record of result.value) {
-            const day = isoToDay.get(record.date.slice(0, 10));
-            const shiftName = record.shift?.name;
-            if (!day || !shiftName) continue;
-            availability[shiftName][day] = record.available
-              ? "available"
-              : "unavailable";
-          }
-        }
-        map[emp.loginCode] = availability;
-      });
-
-      setBackendAvailabilityByLogin(map);
-    };
-
-    loadAllAvailability();
-  }, [backendEmployees, weekDays]);
-
   // Retrieve employee names assigned to a shift/date from backend entries.
   const getBackendAssignmentsForShiftDate = (
     shiftName: ShiftName,
@@ -1107,20 +1072,26 @@ export default function EmployerPage(): ReactElement {
                         <tr key={`employer-team-${shift}`}>
                           <td>{formatShiftLabel(shift)}</td>
                           {DAYS.map((day) => {
-                            const getState = (username: string) =>
-                              (backendAvailabilityByLogin[username] ??
-                                createDefaultAvailability())[shift][day];
                             const availableMembers = employeeList.filter(
                               (employee) =>
-                                getState(employee.username) === "available",
+                                getAvailabilityForUser(
+                                  store,
+                                  employee.username,
+                                )[shift][day] === "available",
                             );
                             const maybeMembers = employeeList.filter(
                               (employee) =>
-                                getState(employee.username) === "maybe",
+                                getAvailabilityForUser(
+                                  store,
+                                  employee.username,
+                                )[shift][day] === "maybe",
                             );
                             const unavailableMembers = employeeList.filter(
                               (employee) =>
-                                getState(employee.username) === "unavailable",
+                                getAvailabilityForUser(
+                                  store,
+                                  employee.username,
+                                )[shift][day] === "unavailable",
                             );
 
                             return (

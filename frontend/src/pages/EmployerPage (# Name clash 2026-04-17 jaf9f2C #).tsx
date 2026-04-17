@@ -112,9 +112,6 @@ export default function EmployerPage(): ReactElement {
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);
   const [teamAvailabilityCompact, setTeamAvailabilityCompact] = useState(true);
-  const [backendAvailabilityByLogin, setBackendAvailabilityByLogin] = useState<
-    Record<string, AvailabilityByShift>
-  >({});
   const [toast, setToast] = useState("");
   const [registerError, setRegisterError] = useState("");
   const [form, setForm] = useState<EmployeeFormState>({
