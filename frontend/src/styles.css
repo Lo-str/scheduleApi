@@ -832,6 +832,7 @@ summary:focus-visible {
     background: #fffaf0;
 }
 
+
 .multi-assignment-cell {
     flex-direction: column;
     gap: 0.55rem;
@@ -995,7 +996,33 @@ summary:focus-visible {
 
 .assignment-meta-row {
     display: flex;
+    align-items: center;
+    gap: 0.4rem;
     justify-content: flex-start;
+}
+
+.availability-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 3px solid #22c55e;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.availability-avatar-fallback {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 3px solid #22c55e;
+    background: #d1fae5;
+    color: #166534;
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
 .schedule-cell-actions {

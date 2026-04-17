@@ -287,6 +287,27 @@ export default function EmployerPage(): ReactElement {
     loadAllAvailability();
   }, [backendEmployees, weekDays]);
 
+  const selectedEmployeeData = useMemo(() => {
+    if (!selectedStaffUsername) return null;
+    const emp = employeeList.find((e) => e.username === selectedStaffUsername);
+    if (!emp) return null;
+    return {
+      image: getProfileImage(emp.username, emp.profileImageKey ?? undefined),
+      initial: emp.name.slice(0, 1).toUpperCase(),
+    };
+  }, [selectedStaffUsername, employeeList]);
+
+  const getSelectedAvailability = (
+    shift: ShiftName,
+    dayLabel: DayName,
+  ): "available" | "unavailable" | null => {
+    if (!selectedStaffUsername) return null;
+    const avail = backendAvailabilityByLogin[selectedStaffUsername];
+    if (!avail) return null;
+    const state = avail[shift]?.[dayLabel];
+    return state === "available" || state === "unavailable" ? state : null;
+  };
+
   // Retrieve employee names assigned to a shift/date from backend entries.
   const getBackendAssignmentsForShiftDate = (
     shiftName: ShiftName,
@@ -866,6 +887,7 @@ export default function EmployerPage(): ReactElement {
                         );
                         const slotBlocks = buildSlotBlocks(filtered, required);
 
+                        const availHint = getSelectedAvailability(shift, day.label);
                         return (
                           <div
                             className="grid-cell booked multi-assignment-cell"
@@ -931,6 +953,19 @@ export default function EmployerPage(): ReactElement {
                                   </button>
                                 </div>
                               )}
+                              {planningMode && selectedEmployeeData && availHint === "available" && (
+                                selectedEmployeeData.image ? (
+                                  <img
+                                    className="availability-avatar"
+                                    src={selectedEmployeeData.image}
+                                    alt="Selected employee"
+                                  />
+                                ) : (
+                                  <div className="availability-avatar-fallback">
+                                    {selectedEmployeeData.initial}
+                                  </div>
+                                )
+                              )}
                             </div>
 
                             {planningMode && (
@@ -991,6 +1026,7 @@ export default function EmployerPage(): ReactElement {
                       );
                       const slotBlocks = buildSlotBlocks(filtered, required);
 
+                      const mobileAvailHint = getSelectedAvailability(shift, day.label);
                       return (
                         <article
                           className="schedule-mobile-card"
@@ -1034,27 +1070,42 @@ export default function EmployerPage(): ReactElement {
                           </div>
 
                           {planningMode && (
-                            <div className="open-slot-controls">
-                              <button
-                                className="open-slot-btn"
-                                type="button"
-                                disabled={required <= assignments.length}
-                                onClick={() =>
-                                  updateRequirement(shift, day.label, -1)
-                                }
-                              >
-                                -
-                              </button>
-                              <button
-                                className="open-slot-btn"
-                                type="button"
-                                disabled={required >= MAX_STAFF_PER_SHIFT}
-                                onClick={() =>
-                                  updateRequirement(shift, day.label, 1)
-                                }
-                              >
-                                +
-                              </button>
+                            <div className="assignment-meta-row">
+                              <div className="open-slot-controls">
+                                <button
+                                  className="open-slot-btn"
+                                  type="button"
+                                  disabled={required <= assignments.length}
+                                  onClick={() =>
+                                    updateRequirement(shift, day.label, -1)
+                                  }
+                                >
+                                  -
+                                </button>
+                                <button
+                                  className="open-slot-btn"
+                                  type="button"
+                                  disabled={required >= MAX_STAFF_PER_SHIFT}
+                                  onClick={() =>
+                                    updateRequirement(shift, day.label, 1)
+                                  }
+                                >
+                                  +
+                                </button>
+                              </div>
+                              {selectedEmployeeData && mobileAvailHint === "available" && (
+                                selectedEmployeeData.image ? (
+                                  <img
+                                    className="availability-avatar"
+                                    src={selectedEmployeeData.image}
+                                    alt="Selected employee"
+                                  />
+                                ) : (
+                                  <div className="availability-avatar-fallback">
+                                    {selectedEmployeeData.initial}
+                                  </div>
+                                )
+                              )}
                             </div>
                           )}
 

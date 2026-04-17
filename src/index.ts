@@ -10,6 +10,7 @@ import scheduleRouter from "./routes/schedule.js"
 import cors from "cors"
 import logger from "./logger.js"
 import { errorHandler } from "./middleware/errorHandler.js"
+import { authenticateJWT } from "./middleware/auth.js"
 
   //****************************************//
  //               VARIABLES                //
@@ -23,6 +24,7 @@ const app = express()
 app.use(cors(corsOptions))
 app.use(express.json())
 app.use("/auth", loginRouter)
+app.use(authenticateJWT)
 app.use("/employees", employeesRouter)
 app.use("/availability", availabilityRouter)
 app.use("/schedule", scheduleRouter)
