@@ -5,7 +5,7 @@ export const SHIFTS = ["MORNING", "AFTERNOON", "NIGHT"] as const;
 export type DayName = (typeof DAYS)[number];
 export type ShiftName = (typeof SHIFTS)[number];
 export type RoleName = "employer" | "employee";
-export type AvailabilityState = "available" | "maybe" | "unavailable";
+export type AvailabilityState = "available" | "unavailable";
 
 export const SHIFT_TIMES: Record<ShiftName, string> = {
   MORNING: "7-15",
@@ -103,7 +103,7 @@ export function createDefaultAvailability(): AvailabilityByShift {
       DayName,
       AvailabilityState
     >,
-    NIGHT: Object.fromEntries(DAYS.map((d) => [d, "maybe"])) as Record<
+    NIGHT: Object.fromEntries(DAYS.map((d) => [d, "available"])) as Record<
       DayName,
       AvailabilityState
     >,

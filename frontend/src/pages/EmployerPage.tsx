@@ -1090,7 +1090,7 @@ export default function EmployerPage(): ReactElement {
                   </button>
                 </div>
                 <p className="muted team-availability-legend">
-                  Green = available, yellow = maybe, red = unavailable.
+                  Green = available, red = unavailable.
                 </p>
                 <div className="table-wrap">
                   <table className="schedule-matrix-table">
@@ -1114,10 +1114,6 @@ export default function EmployerPage(): ReactElement {
                               (employee) =>
                                 getState(employee.username) === "available",
                             );
-                            const maybeMembers = employeeList.filter(
-                              (employee) =>
-                                getState(employee.username) === "maybe",
-                            );
                             const unavailableMembers = employeeList.filter(
                               (employee) =>
                                 getState(employee.username) === "unavailable",
@@ -1133,9 +1129,6 @@ export default function EmployerPage(): ReactElement {
                                     <div className="team-availability-group">
                                       <span className="availability-chip available team-member-chip team-count-chip">
                                         A: {availableMembers.length}
-                                      </span>
-                                      <span className="availability-chip maybe team-member-chip team-count-chip">
-                                        M: {maybeMembers.length}
                                       </span>
                                       <span className="availability-chip unavailable team-member-chip team-count-chip">
                                         U: {unavailableMembers.length}
@@ -1159,18 +1152,6 @@ export default function EmployerPage(): ReactElement {
                                           ))
                                         )}
                                       </div>
-                                      {maybeMembers.length > 0 && (
-                                        <div className="team-availability-group">
-                                          {maybeMembers.map((employee) => (
-                                            <span
-                                              className="availability-chip maybe team-member-chip"
-                                              key={`employer-maybe-${shift}-${day}-${employee.username}`}
-                                            >
-                                              {employee.name}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
                                       {unavailableMembers.length > 0 && (
                                         <div className="team-availability-group">
                                           {unavailableMembers.map(

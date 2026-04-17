@@ -35,6 +35,7 @@ import {
   type Store,
   appendScheduleAudit,
   clearCurrentUser,
+  createDefaultAvailability,
   createShiftExchangeRequest,
   formatShiftLabel,
   getAvailabilityForUser,
@@ -62,7 +63,7 @@ type ProfileFormState = {
   loginCode: string;
 };
 
-const AVAILABILITY_STATES = ["available", "maybe", "unavailable"] as const;
+const AVAILABILITY_STATES = ["available", "unavailable"] as const;
 
 type WeekDayCell = {
   label: DayName;
@@ -123,6 +124,9 @@ export default function EmployeePage(): ReactElement {
   const [backendEmployees, setBackendEmployees] = useState<EmployeeRecord[]>(
     [],
   );
+  const [backendAvailabilityByLogin, setBackendAvailabilityByLogin] = useState<
+    Record<string, AvailabilityByShift>
+  >({});
   const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
   const weekDays = useMemo(() => buildWeekDays(weekStartIso), [weekStartIso]);
   const profileImageInputRef = useRef<HTMLInputElement | null>(null);
@@ -170,6 +174,41 @@ export default function EmployeePage(): ReactElement {
 
     loadBackendData();
   }, []);
+
+  useEffect(() => {
+    if (backendEmployees.length === 0) return;
+
+    const isoToDay = new Map(
+      weekDays.map((entry) => [entry.isoDate, entry.label] as const),
+    );
+
+    const loadAllAvailability = async (): Promise<void> => {
+      const results = await Promise.allSettled(
+        backendEmployees.map((emp) => getBackendAvailability(emp.id)),
+      );
+
+      const map: Record<string, AvailabilityByShift> = {};
+      results.forEach((result, i) => {
+        const emp = backendEmployees[i];
+        const availability = createDefaultAvailability();
+        if (result.status === "fulfilled") {
+          for (const record of result.value) {
+            const day = isoToDay.get(record.date.slice(0, 10));
+            const shiftName = record.shift?.name;
+            if (!day || !shiftName) continue;
+            availability[shiftName][day] = record.available
+              ? "available"
+              : "unavailable";
+          }
+        }
+        map[emp.loginCode] = availability;
+      });
+
+      setBackendAvailabilityByLogin(map);
+    };
+
+    loadAllAvailability();
+  }, [backendEmployees, weekDays]);
 
   if (!sessionUser) return <Navigate to="/login" replace />;
 
@@ -775,7 +814,7 @@ export default function EmployeePage(): ReactElement {
                   </button>
                 </div>
                 <p className="muted team-availability-legend">
-                  Green = available, yellow = maybe, red = unavailable.
+                  Green = available, red = unavailable.
                 </p>
                 <div className="table-wrap">
                   <table className="schedule-matrix-table">
@@ -792,26 +831,16 @@ export default function EmployeePage(): ReactElement {
                         <tr key={`team-availability-${shift}`}>
                           <td>{formatShiftLabel(shift)}</td>
                           {DAYS.map((day) => {
+                            const getState = (loginCode: string) =>
+                              (backendAvailabilityByLogin[loginCode] ??
+                                createDefaultAvailability())[shift][day];
                             const availableMembers = backendEmployees.filter(
                               (employee) =>
-                                getAvailabilityForUser(
-                                  store,
-                                  employee.loginCode,
-                                )[shift][day] === "available",
-                            );
-                            const maybeMembers = backendEmployees.filter(
-                              (employee) =>
-                                getAvailabilityForUser(
-                                  store,
-                                  employee.loginCode,
-                                )[shift][day] === "maybe",
+                                getState(employee.loginCode) === "available",
                             );
                             const unavailableMembers = backendEmployees.filter(
                               (employee) =>
-                                getAvailabilityForUser(
-                                  store,
-                                  employee.loginCode,
-                                )[shift][day] === "unavailable",
+                                getState(employee.loginCode) === "unavailable",
                             );
 
                             return (
@@ -824,9 +853,6 @@ export default function EmployeePage(): ReactElement {
                                     <div className="team-availability-group">
                                       <span className="availability-chip available team-member-chip team-count-chip">
                                         A: {availableMembers.length}
-                                      </span>
-                                      <span className="availability-chip maybe team-member-chip team-count-chip">
-                                        M: {maybeMembers.length}
                                       </span>
                                       <span className="availability-chip unavailable team-member-chip team-count-chip">
                                         U: {unavailableMembers.length}
@@ -853,21 +879,6 @@ export default function EmployeePage(): ReactElement {
                                           })
                                         )}
                                       </div>
-                                      {maybeMembers.length > 0 && (
-                                        <div className="team-availability-group">
-                                          {maybeMembers.map((employee) => {
-                                            const empName = `${employee.firstName} ${employee.lastName}`.trim();
-                                            return (
-                                              <span
-                                                className="availability-chip maybe team-member-chip"
-                                                key={`maybe-${shift}-${day}-${employee.loginCode}`}
-                                              >
-                                                {toDisplayName(empName)}
-                                              </span>
-                                            );
-                                          })}
-                                        </div>
-                                      )}
                                       {unavailableMembers.length > 0 && (
                                         <div className="team-availability-group">
                                           {unavailableMembers.map((employee) => {
