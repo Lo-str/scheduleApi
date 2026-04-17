@@ -413,19 +413,9 @@ export default function EmployeePage(): ReactElement {
       return;
     }
 
-    const shiftIdByName = new Map<ShiftName, number>();
-    for (const shiftName of SHIFTS) {
-      const shiftId = getShiftIdByName(shiftName);
-      if (!shiftId) {
-        window.alert("Could not map shifts from backend schedule data");
-        return;
-      }
-      shiftIdByName.set(shiftName, shiftId);
-    }
-
     const updates = weekDays.flatMap((day) =>
       SHIFTS.map((shiftName) => ({
-        shiftId: shiftIdByName.get(shiftName)!,
+        shift: shiftName,
         date: day.isoDate,
         available: availabilityDraft[shiftName][day.label] !== "unavailable",
       })),

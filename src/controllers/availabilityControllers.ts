@@ -5,7 +5,7 @@ import { sendError, inputValidation } from "../helpers/response.js";
 import logger from "../logger.js";
 
 const availabilitySchema = z.object({
-  shiftId: z.number().int().positive(),
+  shift: z.enum(["MORNING", "AFTERNOON", "NIGHT"]),
   date: z.coerce.date(),
   available: z.boolean(),
 });
@@ -52,7 +52,7 @@ export async function updateAvailability(req: Request, res: Response) {
 
     const [employee, shift] = await Promise.all([
       prisma.employee.findUnique({ where: { id: employeeId } }),
-      prisma.shift.findUnique({ where: { id: parsed.shiftId } }),
+      prisma.shift.findUnique({ where: { name: parsed.shift } }),
     ]);
 
     if (!employee) {
@@ -69,19 +69,19 @@ export async function updateAvailability(req: Request, res: Response) {
       where: {
         employeeId_shiftId_date: {
           employeeId,
-          shiftId: parsed.shiftId,
+          shiftId: shift.id,
           date: parsed.date,
         },
       },
       update: { available: parsed.available },
       create: {
         employeeId,
-        shiftId: parsed.shiftId,
+        shiftId: shift.id,
         date: parsed.date,
         available: parsed.available,
       },
     });
-    logger.info(`Updated availability for employee ${employeeId} on shift ${parsed.shiftId}`);
+    logger.info(`Updated availability for employee ${employeeId} on shift ${parsed.shift}`);
     res.json(newAvailability);
   } catch (err) {
     logger.error(`Error updating availability for employee ${employeeId}: ${err}`);
