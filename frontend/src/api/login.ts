@@ -10,12 +10,13 @@ export const handleLogin = async (identifier: string, password: string) => {
       : { username: value, password };
 
     const response = await api.post("/auth/login", payload);
-    const { username, role, name } = response.data;
+    const { username, role, name, token } = response.data;
 
     sessionStorage.setItem(
       "sessionUser",
       JSON.stringify({ username, role, name }),
     );
+    sessionStorage.setItem("token", token);
 
     return { success: true, role };
   } catch (error: any) {
@@ -33,4 +34,5 @@ export const handleLogin = async (identifier: string, password: string) => {
 
 export const handleLogout = () => {
   sessionStorage.removeItem("sessionUser");
+  sessionStorage.removeItem("token");
 };
