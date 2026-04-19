@@ -13,7 +13,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.response?.status === 401) {
       sessionStorage.clear();
       const base = (import.meta as any).env?.BASE_URL || "/";
       window.location.href = `${base}#/login`;

@@ -31,7 +31,7 @@ const getSlot = async (date: Date, shiftId: number) => {
 }
 
 // GET /schedule
-export const getSchedule = async (req: Request, res: Response) => {
+export const getSchedule = async (_req: Request, res: Response) => {
   try {
     const entries = await prisma.scheduleEntry.findMany({
       include: { employees: true, shift: true },
@@ -69,6 +69,11 @@ export const assignEmployee = async (req: Request, res: Response) => {
     if (!slot) {
       logger.warn(`Schedule slot not found for ${shift} on ${date}`)
       sendError(res, 404, "Schedule slot not found")
+      return
+    }
+
+    if (req.user?.role === "EMPLOYEE" && employee.userId !== req.user.id) {
+      sendError(res, 403, "Forbidden: employees can only assign themselves")
       return
     }
 
@@ -122,6 +127,11 @@ export const removeEmployee = async (req: Request, res: Response) => {
     if (!slot) {
       logger.warn(`Schedule slot not found for ${shift} on ${date}`)
       sendError(res, 404, "Schedule slot not found")
+      return
+    }
+
+    if (req.user?.role === "EMPLOYEE" && employee.userId !== req.user.id) {
+      sendError(res, 403, "Forbidden: employees can only remove themselves")
       return
     }
 

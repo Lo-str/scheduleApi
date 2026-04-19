@@ -107,7 +107,7 @@ export default function EmployerPage(): ReactElement {
     [],
   );
   const [weekStartIso] = useState<string>(() => getMondayIso(new Date()));
-  const weekDays = buildWeekDays(weekStartIso);
+  const weekDays = useMemo(() => buildWeekDays(weekStartIso), [weekStartIso]);
   const [dayFilter, setDayFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planningMode, setPlanningMode] = useState(false);

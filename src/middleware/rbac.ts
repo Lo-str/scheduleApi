@@ -24,6 +24,14 @@ export const authorize = (requiredRole: "EMPLOYER" | "EMPLOYEE") => {
 export const requireEmployer = authorize("EMPLOYER")
 export const requireEmployee = authorize("EMPLOYEE")
 
+export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user) {
+    sendError(res, 401, "Unauthorized")
+    return
+  }
+  next()
+}
+
 // RBAC means: control access based on user roles.
 // Only employers can access employee management endpoints.
 // Employees can only manage their own availability.
