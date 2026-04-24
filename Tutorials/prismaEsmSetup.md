@@ -1,6 +1,7 @@
 # How to set up Prisma 7 with Express and TypeScript
 
 ## 1. Initialize the project
+
 ```bash
 npm init -y
 npm install express dotenv @prisma/client @prisma/extension-accelerate prisma  @prisma/adapter-pg pg zod
@@ -17,8 +18,12 @@ npm install -D typescript@5 ts-node tsx nodemon @types/node @types/express eslin
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon --exec tsx src/index.ts",
-    "lint": "eslint src"
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint src",
+    "frontend:dev": "vite frontend",
+    "frontend:build": "vite build frontend",
+    "frontend:lint": "eslint frontend/src --ext .js,.jsx",
+    "frontend:preview": "vite preview --host"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -44,12 +49,12 @@ npm install -D typescript@5 ts-node tsx nodemon @types/node @types/express eslin
     "zod": "^4.3.6"
   }
 }
-
 ```
 
 ## 2. Set up ESLint
 
 Create a new at the root `eslint.config.js`:
+
 ```js
 // eslint.config.mjs
 import js from "@eslint/js";
@@ -111,7 +116,6 @@ export default tseslint.config(
   // Prettier last so it disables conflicting formatting rules
   prettier,
 );
-
 ```
 
 ## 3. Configure tsconfig.json
@@ -119,6 +123,7 @@ export default tseslint.config(
 ```bash
 npx tsc --init
 ```
+
 ```json
 {
   "compilerOptions": {
@@ -141,19 +146,23 @@ npx tsc --init
   "include": ["src/**/*"]
 }
 ```
+
 Create `src` folder at the root
+
 ```bash
 npx tsc
 ```
 
 ## 4. Set up Prisma
+
 ```bash
 npx prisma init
 ```
 
-Then go to https://console.prisma.io, create a new project, select Prisma Postgres and enable Accelerate.  
- 
+Then go to https://console.prisma.io, create a new project, select Prisma Postgres and enable Accelerate.
+
 Copy the connection string into your `.env`:
+
 ```
 DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=your_key_here"
 ```
@@ -161,6 +170,7 @@ DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=your_key_her
 ## 5. Write your schema
 
 In `prisma/schema.prisma`:
+
 ```prisma
 generator client {
   provider            = "prisma-client"
@@ -177,9 +187,10 @@ model User {
 ```
 
 ## 6. Configure prisma.config.ts
+
 ```ts
-import "dotenv/config"
-import { defineConfig, env } from "prisma/config"
+import "dotenv/config";
+import { defineConfig, env } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -190,15 +201,17 @@ export default defineConfig({
   datasource: {
     url: env("DATABASE_URL"),
   },
-})
+});
 ```
 
 ## 7. Run the migration
+
 ```bash
 npx prisma migrate dev --name create_table
 ```
 
 ## 8. Generate the Prisma client
+
 ```bash
 npx prisma generate
 ```
@@ -206,6 +219,7 @@ npx prisma generate
 ## 9. Write the seed file
 
 In `prisma/seed.ts`:
+
 ```ts
 import "dotenv/config"
 import { PrismaClient } from "../src/generated/prisma/client.js"
@@ -216,13 +230,14 @@ const prisma = new PrismaClient({
 }).$extends(withAccelerate())
 
 const seed = async () {
-  await 
+  await
 }
 
 seed().then(() => prisma.$disconnect())
 ```
 
 Then run:
+
 ```bash
 npx prisma db seed
 ```
@@ -230,17 +245,19 @@ npx prisma db seed
 ## 10. Build the Express API
 
 In `src/index.ts` import PrismaClient from the generated path:
+
 ```ts
-import { PrismaClient } from "./generated/prisma/client.js"
-import { withAccelerate } from "@prisma/extension-accelerate"
-import { z } from "zod"
+import { PrismaClient } from "./generated/prisma/client.js";
+import { withAccelerate } from "@prisma/extension-accelerate";
+import { z } from "zod";
 
 const prisma = new PrismaClient({
   accelerateUrl: process.env.DATABASE_URL!,
-}).$extends(withAccelerate())
+}).$extends(withAccelerate());
 ```
 
 Then add your routes and start the server with:
+
 ```bash
 npm run dev
 ```
